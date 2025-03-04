@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallax Website with Hand Tracking</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="container"></div>
+    <div id="content">
+        <div class="section" id="section1">
+            <div class="section-content">
+                <h1>Welcome to My Portfolio</h1>
+                <p>Scroll down to explore or use hand gestures!</p>
+
+            </div>
+        </div>
+        <div class="section" id="section2">
+            <div class="section-content">
+                <h1>Section 2</h1>
+                <p>This will be developed next</p>
+            </div>
+        </div>
+        <div class="section" id="section3">
+            <div class="section-content">
+                <h1>Section 3</h1>
+                <p>This will be developed next</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-dots">
+        <div class="dot active" data-section="0"></div>
+        <div class="dot" data-section="1"></div>
+        <div class="dot" data-section="2"></div>
+    </div>
+
+    <!-- MediaPipe libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <!-- Three.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Your scripts -->
+    <script src="three-scene.js"></script>
+    <script src="hand-gestures.js"></script>
+
+    <script>
+        // Add event listener for the CTA button
+        document.addEventListener('DOMContentLoaded', function () {
+            const enableButton = document.getElementById('enable-hand-tracking');
+            if (enableButton) {
+                enableButton.addEventListener('click', function () {
+                    // Don't show the automatic prompt
+                    window.skipAutomaticPrompt = true;
+
+                    // Show permission dialog immediately
+                    if (window.requestHandGestures) {
+                        window.requestHandGestures();
+                    }
+                });
+            }
+        });
+    </script>
+
+    <style>
+        .cta-button {
+            display: inline-block;
+            background-color: #4285f4;
+            color: rgb(207, 141, 141);
+            border: none;
+            border-radius: 4px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .cta-button:hover {
+            background-color: #3367d6;
+        }
+    </style>
+</body>
+
+</html>
