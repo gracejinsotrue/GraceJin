@@ -1,6 +1,8 @@
-// three-scene.js - Three.js scene and animation logic
+// three-scene.js with organized section-based structure
 
-// Scene setup
+// ============================================================
+// GLOBAL SCENE SETUP
+// ============================================================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -16,15 +18,47 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(0, 1, 1);
 scene.add(directionalLight);
 
-// Arrays to store our objects
-const parallaxLayers = [];
+// Set up raycaster for mouse interaction
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
-// Normal, thumbs up, and thumbs down animation planes
+// ============================================================
+// SECTION MANAGEMENT
+// ============================================================
+// Arrays to store objects by section
+const sectionObjects = {
+    section1: {
+        parallaxLayers: [],
+        clickableObjects: []
+    },
+    section2: {
+        parallaxLayers: [],
+        clickableObjects: []
+    },
+    section3: {
+        parallaxLayers: [],
+        clickableObjects: []
+    }
+};
+
+
+const panLimits = {
+    minX: -5,  // Maximum left pan
+    maxX: 5,   // Maximum right pan
+    minY: -3,  // Maximum up pan
+    maxY: 3    // Maximum down pan
+};
+
+
+// Animation planes are global
 let normalAnimationPlane = null;
 let thumbsUpAnimationPlane = null;
 let thumbsDownAnimationPlane = null;
 
-// Animation state
+// Section-specific reference objects
+let groceryFrontLayer = null; // Section 1 special layer
+
+// Animation and frame state
 const animationState = {
     introComplete: false,
     introProgress: 0,
@@ -34,7 +68,6 @@ const animationState = {
     totalLayers: 5
 };
 
-// Frame animation state
 const frameAnimation = {
     normalFrames: [],
     thumbsUpFrames: [],
@@ -49,258 +82,128 @@ const frameAnimation = {
     transitionInProgress: false
 };
 
-
-// Add this to your existing animation state object
-const shelfAnimation = {
-    frames: [],
-    frameIndex: 0,
-    totalFrames: 4,  // Change this based on how many frames you have
-    fps: 8,          // Frames per second
-    lastFrameTime: 0,
-    framesLoaded: false
-};
-
-
-// Function to preload grocery shelf animation frames
-function preloadShelfFrames() {
-    const textureLoader = new THREE.TextureLoader();
-    let loadedFrames = 0;
-
-    // Load shelf animation frames
-    for (let i = 1; i <= shelfAnimation.totalFrames; i++) {
-        const framePath = `assets/images/groceryshelf_frame${i}.png`;
-        textureLoader.load(framePath, (texture) => {
-            shelfAnimation.frames[i - 1] = texture;
-            loadedFrames++;
-
-            if (loadedFrames >= shelfAnimation.totalFrames) {
-                console.log("All shelf animation frames loaded");
-                shelfAnimation.framesLoaded = true;
-
-                // Find and update the grocery shelf layer with the first frame
-                parallaxLayers.forEach(layer => {
-                    if (layer.userData.name === 'groceryshelf') {
-                        layer.material.map = shelfAnimation.frames[0];
-                        layer.material.needsUpdate = true;
-                        layer.userData.isAnimated = true;
-                    }
-                });
-            }
-        }, undefined, (err) => {
-            console.error(`Error loading ${framePath}:`, err);
-            loadedFrames++;
-        });
-    }
-}
-
-const clickableObjects = [];
-
-
-// Function to create a clickable object
-function createClickableObject(imagePath, position, size, url, name = '') {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(imagePath, (texture) => {
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-
-        const plane = new THREE.Mesh(geometry, material);
-        plane.position.set(position.x, position.y, position.z);
-
-        // Store metadata
-        plane.userData = {
-            isClickable: true,
-            url: url,
-            name: name,
-            originalScale: new THREE.Vector3(1, 1, 1),
-            hoverScale: new THREE.Vector3(1.1, 1.1, 1.1), // 10% larger on hover
-            isHovered: false
-        };
-
-        scene.add(plane);
-        clickableObjects.push(plane);
-
-        console.log(`Created clickable object: ${name}`);
-    });
-}
-
-
-// Function to create a parallax clickable object
-function createParallaxClickable(imagePath, position, size, parallaxSpeed, url, name = '', initialOffset = 5) {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(imagePath, (texture) => {
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-
-        const plane = new THREE.Mesh(geometry, material);
-
-        // Set initial position
-        plane.position.set(position.x, position.y + initialOffset, position.z);
-
-        // Store metadata for both parallax and clickable functionality
-        plane.userData = {
-            // Parallax properties
-            parallaxSpeed: parallaxSpeed,
-            initialOffset: initialOffset,
-            initialDelay: animationState.layersLoaded * animationState.introDelay,
-            originY: position.y, // Store original Y position for parallax scrolling
-
-            // Clickable properties
-            isClickable: true,
-            url: url,
-            name: name,
-            originalScale: new THREE.Vector3(1, 1, 1),
-            hoverScale: new THREE.Vector3(1.1, 1.1, 1.1), // 10% larger on hover
-            isHovered: false
-        };
-
-        scene.add(plane);
-        clickableObjects.push(plane);
-
-        // Also add to parallaxLayers to participate in intro animations and parallax scrolling
-        parallaxLayers.push(plane);
-
-        animationState.layersLoaded++;
-
-        console.log(`Created parallax clickable object: ${name}`);
-    });
-}
-
-
-
-// Set up raycaster for mouse interaction
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-// Track mouse movements
-function onMouseMove(event) {
-    // Calculate mouse position in normalized device coordinates
-    // (-1 to +1) for both components
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    // Update the picking ray with the camera and mouse position
-    raycaster.setFromCamera(mouse, camera);
-
-    // Calculate objects intersecting the picking ray
-    const intersects = raycaster.intersectObjects(clickableObjects);
-
-    // Reset all objects to original scale
-    clickableObjects.forEach(obj => {
-        if (obj.userData.isHovered) {
-            obj.scale.copy(obj.userData.originalScale);
-            obj.userData.isHovered = false;
-            document.body.style.cursor = 'default';
-        }
-    });
-
-    // Scale up hovered object
-    if (intersects.length > 0) {
-        const hoveredObject = intersects[0].object;
-        hoveredObject.scale.copy(hoveredObject.userData.hoverScale);
-        hoveredObject.userData.isHovered = true;
-        document.body.style.cursor = 'pointer';
-    }
-}
-
-// Handle mouse clicks
-function onMouseClick(event) {
-    // Update the picking ray with the camera and mouse position
-    raycaster.setFromCamera(mouse, camera);
-
-    // Calculate objects intersecting the picking ray
-    const intersects = raycaster.intersectObjects(clickableObjects);
-
-    // Open URL if a clickable object is clicked
-    if (intersects.length > 0) {
-        const clickedObject = intersects[0].object;
-        if (clickedObject.userData.url) {
-            window.open(clickedObject.userData.url, '_blank');
-            console.log(`Clicked on ${clickedObject.userData.name}, opening ${clickedObject.userData.url}`);
-        }
-    }
-}
-
-// Add event listeners
-window.addEventListener('mousemove', onMouseMove, false);
-window.addEventListener('click', onMouseClick, false);
-
-
 // Variables for scroll interaction
 let currentSection = 0;
 let targetSection = 0;
 let scrollY = 0;
 let scrollingEnabled = false;
-let groceryFrontLayer = null;
 
-// Calculate the size needed to cover the viewport
-function calculateFullscreenSize(distanceFromCamera) {
+
+// Add these variables for zoom and pan control
+let zoomLevel = 1;
+const zoomSpeed = 0.1;
+const minZoom = 0.5;
+const maxZoom = 3;
+const panSpeed = 0.05;
+let isPanning = false;
+let keysPressed = {};
+
+// Add to your variables at the top
+const panKeys = {
+    left: 'a',    // A key to pan left
+    right: 'd',   // D key to pan right
+    up: 'w',      // W key to pan up
+    down: 's'     // S key to pan down
+};
+
+
+
+// Initialize variables for model interaction (part 2 for now)
+let modelContainer = null;
+let isDragging = false;
+let previousMousePosition = { x: 0, y: 0 };
+let modelRotation = { x: 0, y: 0 };
+let modelLoaded = false;
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //should extra margin be in the param
     const fov = camera.fov * (Math.PI / 180);
     const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
     const visibleWidth = visibleHeight * camera.aspect;
     return {
-        width: visibleWidth * 1.1,
-        height: visibleHeight * 1.1
+        width: visibleWidth * (1 + extraMargin),
+        height: visibleHeight * (1 + extraMargin)
     };
 }
+function loadInteractiveModel() {
+    // Create a container for the model
+    modelContainer = new THREE.Object3D();
+    modelContainer.scale.set(3, 3, 3); // NOTE TO SELF: AJUSTING THIS SCALE AND THE Y VALUE IS HOW TO GET THIS SHIT TO FUCKING LOAD 
 
-// Function to create image layers that fill the screen
-function createImageLayer(zPosition, imagePath, speed, initialOffset = 5, name = '') {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(imagePath, (texture) => {
-        const size = calculateFullscreenSize(zPosition);
+    modelContainer.position.set(0, -window.innerHeight / 45 + 3, 0); // Keep initial position
 
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide
-        });
+    scene.add(modelContainer);
 
-        const plane = new THREE.Mesh(geometry, material);
-        plane.position.z = zPosition;
+    console.log("Model container added to scene");
+    storeLayerOriginalPosition(modelContainer);
 
-        // Set initial position for intro animation
-        plane.position.y = initialOffset;
+    // Initialize the GLTF loader
+    const loader = new THREE.GLTFLoader();
 
-        // Store metadata
-        plane.userData = {
-            name: name,
-            parallaxSpeed: speed,
-            targetY: 0,
-            initialOffset: initialOffset,
-            initialDelay: animationState.layersLoaded * animationState.introDelay,
-            originalScale: plane.scale.clone(),
-            isAnimated: name == "groceryshelf"
-        };
+    // Load the model (replace with your model path)
+    loader.load(
+        'assets/test3.glb',
+        function (gltf) {
+            console.log('Model loaded successfully');
 
-        scene.add(plane);
-        parallaxLayers.push(plane);
+            const model = gltf.scene;
 
-        // Check if this is the groceryfront layer
-        if (name === 'groceryfront') {
-            groceryFrontLayer = plane;
-            setupPartialVisibility(groceryFrontLayer, 0.4);
+            // Compute bounding box
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDimension = Math.max(size.x, size.y, size.z);
+
+            // Scale model to reasonable size
+            const scaleFactor = 2 / maxDimension;
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+            // Recompute bounding box after scaling
+            box.setFromObject(model);
+            const newCenter = box.getCenter(new THREE.Vector3());
+
+            // Center model to pivot (X and Z), but keep original Y height
+            model.position.sub(newCenter);
+            model.position.y += size.y / 2; // Adjust Y to prevent it from sinking
+
+            // Add the model to the container
+            modelContainer.add(model);
+
+            // Lighting
+            const modelLight = new THREE.DirectionalLight(0xffffff, 1);
+            modelLight.position.set(0, 1, 1);
+            modelContainer.add(modelLight);
+
+            const ambientModelLight = new THREE.AmbientLight(0xffffff, 0.5);
+            modelContainer.add(ambientModelLight);
+
+            modelLoaded = true;
+        },
+        function (xhr) {
+            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function (error) {
+            console.error('Error loading model:', error);
         }
+    );
 
-        animationState.layersLoaded++;
-
-        window.addEventListener('resize', () => {
-            const newSize = calculateFullscreenSize(zPosition);
-            plane.geometry.dispose();
-            plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
-        });
-    });
+    return modelContainer;
 }
 
-// Function to set up partial visibility for groceryfront layer
+// Function to update model visibility based on current section
+function updateModelVisibility() {
+    if (!modelLoaded || !modelContainer) return;
+
+    // Show model only when in section 2 (with some buffer for transition)
+    if (currentSection >= 0.75 && currentSection <= 1.75) {
+        modelContainer.visible = true;
+    } else {
+        modelContainer.visible = false;
+    }
+}
+
+
 function setupPartialVisibility(plane, visiblePortion = 0.4) {
     // Create a clipping plane that only shows the top portion
     const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
@@ -321,7 +224,6 @@ function setupPartialVisibility(plane, visiblePortion = 0.4) {
     updateClipPlane(plane, 0);
 }
 
-// Function to update the clip plane based on scroll position
 function updateClipPlane(plane, scrollPosition) {
     if (!plane || !plane.userData.clipPlane) return;
 
@@ -331,7 +233,573 @@ function updateClipPlane(plane, scrollPosition) {
     plane.userData.clipPlane.constant = clipOffset - revealAmount;
 }
 
-// Function to preload animation frames
+// Update the keyboard controls
+function setupKeyboardControls() {
+    // Listen for key down events
+    document.addEventListener('keydown', function (event) {
+        // Store key state
+        keysPressed[event.key.toLowerCase()] = true;
+
+        // Handle zoom controls for all sections
+        if (event.key === '+' || event.key === '=') {
+            zoomIn();
+        }
+        else if (event.key === '-' || event.key === '_') {
+            zoomOut();
+        }
+        // Check if it's a pan key (WASD)
+        else if (Object.values(panKeys).includes(event.key.toLowerCase())) {
+            isPanning = true;
+        }
+    });
+
+    // Listen for key up events
+    document.addEventListener('keyup', function (event) {
+        // Clear key state
+        keysPressed[event.key.toLowerCase()] = false;
+
+        // Check if any pan keys are still pressed
+        if (Object.values(panKeys).some(key => keysPressed[key])) {
+            isPanning = true;
+        } else {
+            isPanning = false;
+        }
+    });
+
+    // Add a visual control panel with updated instructions
+    addControlPanel();
+}
+
+
+// Function to zoom in for all sections
+function zoomIn() {
+    // For section 1
+    if (currentSection < 0.5) {
+        // Zoom in section 1 elements
+        zoomSection(sectionObjects.section1.parallaxLayers);
+    }
+    // For section 2
+    else if (currentSection >= 0.5 && currentSection < 1.5) {
+        // Zoom model if it exists
+        if (modelContainer && modelContainer.userData.pivot) {
+            zoomLevel = Math.min(maxZoom, zoomLevel + zoomSpeed);
+            modelContainer.userData.pivot.scale.set(zoomLevel, zoomLevel, zoomLevel);
+        }
+        // Zoom section 2 elements
+        zoomSection(sectionObjects.section2.parallaxLayers);
+    }
+    // For section 3
+    else if (currentSection >= 1.5) {
+        // Zoom section 3 elements
+        zoomSection(sectionObjects.section3.parallaxLayers);
+    }
+}
+
+// Function to zoom out for all sections
+function zoomOut() {
+    // For section 1
+    if (currentSection < 0.5) {
+        // Zoom out section 1 elements
+        zoomSectionOut(sectionObjects.section1.parallaxLayers);
+    }
+    // For section 2
+    else if (currentSection >= 0.5 && currentSection < 1.5) {
+        // Zoom out model if it exists
+        if (modelContainer && modelContainer.userData.pivot && zoomLevel > minZoom) {
+            zoomLevel = Math.max(minZoom, zoomLevel - zoomSpeed);
+            modelContainer.userData.pivot.scale.set(zoomLevel, zoomLevel, zoomLevel);
+        }
+        // Zoom out section 2 elements
+        zoomSectionOut(sectionObjects.section2.parallaxLayers);
+    }
+    // For section 3
+    else if (currentSection >= 1.5) {
+        if (!isZoomedIn || !currentZoomedObject) return;
+
+        console.log("Zooming out...");
+
+        gsap.to(currentZoomedObject.scale, {
+            x: currentZoomedObject.userData.originalScale.x,
+            y: currentZoomedObject.userData.originalScale.y,
+            z: currentZoomedObject.userData.originalScale.z,
+            duration: 0.8,
+            ease: "power2.out",
+            onComplete: () => {
+                console.log("Zoom-out complete, object is back to normal.");
+                isZoomedIn = false;
+                currentZoomedObject = null;
+            }
+        });
+
+        // Restore other properties if needed
+        gsap.to(currentZoomedObject.position, {
+            x: currentZoomedObject.userData.originalX,
+            y: currentZoomedObject.userData.originalY,
+            z: currentZoomedObject.userData.originalZ,
+            duration: 0.8,
+            ease: "power2.out"
+        });
+
+        gsap.to(currentZoomedObject.rotation, {
+            x: 0,
+            y: 0,
+            z: 0,
+            duration: 0.8,
+            ease: "power2.out"
+        });
+
+        // Remove overlay and back button
+        removeOverlay();
+        removeBackButton();
+
+        // Enable scrolling again
+        scrollingEnabled = true;
+
+        // Remove click outside handler
+        document.removeEventListener('click', handleClickOutside);
+    }
+}
+
+// Helper function to zoom in a section's layers
+function zoomSection(layers) {
+    if (!layers) return;
+
+    layers.forEach(layer => {
+        if (!layer.userData.zoomLevel) {
+            layer.userData.zoomLevel = 1;
+        }
+
+        layer.userData.zoomLevel = Math.min(maxZoom, layer.userData.zoomLevel + zoomSpeed);
+        layer.scale.set(
+            layer.userData.zoomLevel,
+            layer.userData.zoomLevel,
+            layer.userData.zoomLevel
+        );
+    });
+}
+
+
+// Helper function to zoom out a section's layers
+function zoomSectionOut(layers) {
+    if (!layers) return;
+
+    layers.forEach(layer => {
+        if (!layer.userData.zoomLevel) {
+            layer.userData.zoomLevel = 1;
+        }
+
+        layer.userData.zoomLevel = Math.max(minZoom, layer.userData.zoomLevel - zoomSpeed);
+        layer.scale.set(
+            layer.userData.zoomLevel,
+            layer.userData.zoomLevel,
+            layer.userData.zoomLevel
+        );
+    });
+}
+
+// Function to process panning for all sections
+function processPanning() {
+    if (!isPanning) return;
+
+    // Get the current active section layers
+    let currentLayers = [];
+
+    if (currentSection < 0.5) {
+        currentLayers = sectionObjects.section1.parallaxLayers;
+
+        // Process panning for section 1
+        processSectionPanning(currentLayers);
+    }
+    else if (currentSection >= 0.5 && currentSection < 1.5) {
+        // Pan the model in section 2
+
+        processModelPanning();
+
+        currentLayers = sectionObjects.section2.parallaxLayers;
+        processSectionPanning(currentLayers);
+        if (modelContainer) {
+            const panAmount = panSpeed * zoomLevel;
+
+            // Pan left/right
+            if (keysPressed['ArrowLeft'] && keysPressed['Shift']) {
+                modelContainer.position.x += panAmount;
+            } else if (keysPressed['ArrowRight'] && keysPressed['Shift']) {
+                modelContainer.position.x -= panAmount;
+            }
+
+            // Pan up/down
+            if (keysPressed['ArrowUp'] && keysPressed['Shift']) {
+                modelContainer.position.y -= panAmount;
+            } else if (keysPressed['ArrowDown'] && keysPressed['Shift']) {
+                modelContainer.position.y += panAmount;
+            }
+        }
+
+        // Also pan section 2 layers
+        currentLayers = sectionObjects.section2.parallaxLayers;
+        processSectionPanning(currentLayers);
+    }
+    else if (currentSection >= 1.5) {
+        currentLayers = sectionObjects.section3.parallaxLayers;
+
+        // Process panning for section 3
+        processSectionPanning(currentLayers);
+    }
+}
+
+/// Update the processSectionPanning function to use WASD
+function processSectionPanning(layers) {
+    if (!layers) return;
+
+    const panAmount = panSpeed;
+
+    layers.forEach(layer => {
+        let newX = layer.position.x;
+        let newY = layer.position.y;
+
+        // Pan left/right with WASD
+        if (keysPressed[panKeys.left]) {
+            newX = Math.min(panLimits.maxX, layer.position.x + panAmount);
+        } else if (keysPressed[panKeys.right]) {
+            newX = Math.max(panLimits.minX, layer.position.x - panAmount);
+        }
+
+        // Pan up/down with WASD
+        if (keysPressed[panKeys.up]) {
+            newY = Math.max(panLimits.minY + layer.userData.parallaxSpeed * currentSection * 10,
+                layer.position.y - panAmount);
+        } else if (keysPressed[panKeys.down]) {
+            newY = Math.min(panLimits.maxY + layer.userData.parallaxSpeed * currentSection * 10,
+                layer.position.y + panAmount);
+        }
+
+        // Apply new position
+        layer.position.x = newX;
+        layer.position.y = newY;
+    });
+}
+
+// Function to add visual control panel
+function addControlPanel() {
+    const panel = document.createElement('div');
+    panel.className = 'model-controls';
+    panel.innerHTML = `
+        <div class="controls-panel">
+            <h3>Controls</h3>
+            <p><strong>Rotate Model:</strong> Click and drag</p>
+            <p><strong>Zoom:</strong> + / - keys</p>
+            <p><strong>Pan:</strong> W/A/S/D keys</p>
+            <button id="reset-view">Reset View</button>
+        </div>
+    `;
+    // Add styles for the control panel
+    const style = document.createElement('style');
+    style.textContent = `
+        .model-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            pointer-events: auto;
+        }
+        .controls-panel {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            max-width: 200px;
+        }
+        .controls-panel h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .controls-panel p {
+            margin: 5px 0;
+        }
+        #reset-view {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #reset-view:hover {
+            background-color: #3367d6;
+        }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(panel);
+
+    // Reset button functionality
+    document.getElementById('reset-view').addEventListener('click', function () {
+        resetAllViews();
+    });
+}
+
+// Function to reset all views
+function resetAllViews() {
+    // Reset model in section 2
+    if (modelContainer && modelContainer.userData.pivot) {
+        // Reset rotation
+        modelRotation.x = 0;
+        modelRotation.y = 0;
+        modelContainer.userData.pivot.rotation.set(0, 0, 0);
+
+        // Reset zoom
+        zoomLevel = 1;
+        modelContainer.userData.pivot.scale.set(1, 1, 1);
+
+        // Reset position using stored original position
+        if (modelContainer.userData.originalX !== undefined) {
+            modelContainer.position.set(
+                modelContainer.userData.originalX,
+                modelContainer.userData.originalY,
+                modelContainer.userData.originalZ
+            );
+        } else {
+            // Fallback if original position wasn't stored
+            const sectionOffset = -window.innerHeight / 45 + 1;
+            modelContainer.position.set(0, sectionOffset, -3);
+        }
+    }
+
+    // Reset all section layers
+    Object.values(sectionObjects).forEach(section => {
+        if (section.parallaxLayers) {
+            section.parallaxLayers.forEach(layer => {
+                // Reset zoom
+                layer.userData.zoomLevel = 1;
+                layer.scale.set(1, 1, 1);
+
+                // Reset position using stored original position
+                if (layer.userData.originalX !== undefined) {
+                    // For parallax layers, we need to maintain current Y for scrolling
+                    const currentY = layer.position.y;
+                    layer.position.set(
+                        layer.userData.originalX,
+                        currentY,  // Keep current Y for proper scrolling
+                        layer.userData.originalZ
+                    );
+                }
+            });
+        }
+    });
+
+
+    console.log("All views reset");
+}
+// Store original positions when creating layers
+// Add this to your layer creation functions: /dunno about this one gang
+function storeLayerOriginalPosition(layer) {
+    layer.userData.originalX = layer.position.x;
+    layer.userData.originalY = layer.position.y;
+    layer.userData.originalZ = layer.position.z;
+}
+
+// Call this for each layer you create
+// For example, add to createImageLayer, createSection2ImageLayer, etc.
+
+// ============================================================
+// SECTION 1: GROCERY STORE / MAIN PARALLAX
+// ============================================================
+function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 5, name = '', isClickable = false, url = '') {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const size = calculateFullscreenSize(zPosition, 0.5);
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.z = zPosition;
+
+        // Set initial position for intro animation
+        plane.position.y = initialOffset;
+
+        // Store metadata
+        plane.userData = {
+            section: 'section1',
+            name: name,
+            parallaxSpeed: speed,
+            targetY: 0,
+            initialOffset: initialOffset,
+            initialDelay: animationState.layersLoaded * animationState.introDelay,
+            originalScale: plane.scale.clone(),
+            isClickable: isClickable,
+            url: url,
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false
+        };
+
+        scene.add(plane);
+        sectionObjects.section1.parallaxLayers.push(plane);
+        storeLayerOriginalPosition(modelContainer);
+
+        // Add to clickable objects if needed
+        if (isClickable) {
+            sectionObjects.section1.clickableObjects.push(plane);
+        }
+
+        // Check if this is the groceryfront layer
+        if (name === 'groceryfront') {
+            groceryFrontLayer = plane;
+            setupPartialVisibility(groceryFrontLayer, 0.4);
+        }
+
+        animationState.layersLoaded++;
+
+        window.addEventListener('resize', () => {
+            const newSize = calculateFullscreenSize(zPosition);
+            plane.geometry.dispose();
+            plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
+        });
+    });
+}
+
+function createSection1ClickableObject(imagePath, position, size, parallaxSpeed, url, name = '', initialOffset = 5) {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Set initial position
+        plane.position.set(position.x, position.y + initialOffset, position.z);
+
+        // Store metadata for both parallax and clickable functionality
+        plane.userData = {
+            section: 'section1',
+            parallaxSpeed: parallaxSpeed,
+            initialOffset: initialOffset,
+            initialDelay: animationState.layersLoaded * animationState.introDelay,
+            originY: position.y,
+            isClickable: true,
+            url: url,
+            name: name,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.1, 1.1, 1.1),
+            isHovered: false
+        };
+
+        scene.add(plane);
+        sectionObjects.section1.clickableObjects.push(plane);
+        sectionObjects.section1.parallaxLayers.push(plane);
+
+        animationState.layersLoaded++;
+
+        console.log(`Created section 1 clickable object: ${name}`);
+    });
+}
+
+function createAnimationPlanes() {
+    // Position this in front of other elements
+    const zPosition = -1.5;
+
+    // Calculate appropriate size
+    const fullSize = calculateFullscreenSize(zPosition);
+    const size = {
+        width: fullSize.width * 0.25,
+        height: fullSize.height * 0.6
+    };
+
+    // Create position vector with higher Y value
+    const position = new THREE.Vector3(
+        size.width * 0.3,
+        size.height * 0.2,
+        zPosition
+    );
+
+    // 1. Create normal animation plane
+    if (frameAnimation.normalFrames.length > 0) {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: frameAnimation.normalFrames[0],
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        normalAnimationPlane = new THREE.Mesh(geometry, material);
+        normalAnimationPlane.position.copy(position);
+        normalAnimationPlane.visible = true;
+        normalAnimationPlane.position.y -= 5; // Start off-screen for intro animation
+
+        scene.add(normalAnimationPlane);
+    }
+
+    // 2. Create thumbs up animation plane
+    if (frameAnimation.thumbsUpFrames.length > 0) {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: frameAnimation.thumbsUpFrames[0],
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        thumbsUpAnimationPlane = new THREE.Mesh(geometry, material);
+        thumbsUpAnimationPlane.position.copy(position);
+        thumbsUpAnimationPlane.visible = false;
+
+        scene.add(thumbsUpAnimationPlane);
+    }
+
+    // 3. Create thumbs down animation plane
+    if (frameAnimation.thumbsDownFrames.length > 0) {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: frameAnimation.thumbsDownFrames[0],
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        thumbsDownAnimationPlane = new THREE.Mesh(geometry, material);
+        thumbsDownAnimationPlane.position.copy(position);
+        thumbsDownAnimationPlane.visible = false;
+
+        scene.add(thumbsDownAnimationPlane);
+    }
+
+    // Set up resize handlers for all planes
+    window.addEventListener('resize', () => {
+        const newFullSize = calculateFullscreenSize(zPosition);
+        const newSize = {
+            width: newFullSize.width * 0.25,
+            height: newFullSize.height * 0.6
+        };
+
+        const newPosition = new THREE.Vector3(
+            newSize.width * 0.3,
+            newSize.height * 0.2,
+            zPosition
+        );
+
+        // Update each plane
+        [normalAnimationPlane, thumbsUpAnimationPlane, thumbsDownAnimationPlane].forEach(plane => {
+            if (plane) {
+                plane.geometry.dispose();
+                plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
+                plane.position.copy(newPosition);
+            }
+        });
+    });
+}
+
 function preloadAnimationFrames() {
     const textureLoader = new THREE.TextureLoader();
     const totalNormalFrames = 8;
@@ -383,105 +851,689 @@ function preloadAnimationFrames() {
         });
     }
 
-    // Check if all frames have loaded
     function checkAllFramesLoaded() {
         if (loadedFrames >= totalFramesToLoad) {
             console.log("All animation frames loaded");
             frameAnimation.framesLoaded = true;
-
-            // Create animation planes once all frames are loaded
             createAnimationPlanes();
         }
     }
 }
 
-// Function to create separate animation planes
-function createAnimationPlanes() {
-    // Position this in front of other elements
-    const zPosition = -2.5;
+function createSection1() {
+    // Create all section 1 layers
+    createSection1ImageLayer(-6, 'assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor'); // set floor to oe or else overalp
+    createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf');
+    createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2');
+    //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
+    createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang');
+    createSection1ImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront');
 
+    // Add clickable objects in section 1
+    createSection1ClickableObject(
+        'assets/images/kimchi-jar.png',
+        { x: 1.5, y: 0, z: -1.8 },
+        { width: 0.8, height: 1.2 },
+        0.7,
+        'https://example.com/kimchi',
+        'kimchi-jar',
+        3
+    );
+}
 
-    // Calculate appropriate size
-    const fullSize = calculateFullscreenSize(zPosition);
-    const size = {
-        width: fullSize.width * 0.25,   // 25% of screen width
-        height: fullSize.height * 0.6    // 60% of screen height
-    };
+// ============================================================
+// SECTION 2: NEW SECTION IMPLEMENTATION
+// ============================================================
+function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const size = calculateFullscreenSize(zPosition);
 
-    // Create position vector to reuse
-    const position = new THREE.Vector3(size.width * 0.9, -size.height * 0.3, zPosition);
-
-    // 1. Create normal animation plane
-    if (frameAnimation.normalFrames.length > 0) {
         const geometry = new THREE.PlaneGeometry(size.width, size.height);
         const material = new THREE.MeshBasicMaterial({
-            map: frameAnimation.normalFrames[0],
+            map: texture,
             transparent: true,
             side: THREE.DoubleSide
         });
 
-        normalAnimationPlane = new THREE.Mesh(geometry, material);
-        normalAnimationPlane.position.copy(position);
-        normalAnimationPlane.visible = true; // Start with normal visible
-        normalAnimationPlane.position.y -= 5; // Start off-screen for intro animation
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.z = zPosition;
 
-        scene.add(normalAnimationPlane);
-    }
+        // Position for section 2 (starts one screen height down)
+        plane.position.y = -window.innerHeight / 100;
 
-    // 2. Create thumbs up animation plane
-    if (frameAnimation.thumbsUpFrames.length > 0) {
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: frameAnimation.thumbsUpFrames[0],
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-
-        thumbsUpAnimationPlane = new THREE.Mesh(geometry, material);
-        thumbsUpAnimationPlane.position.copy(position);
-        thumbsUpAnimationPlane.visible = false; // Start hidden
-
-        scene.add(thumbsUpAnimationPlane);
-    }
-
-    // 3. Create thumbs down animation plane
-    if (frameAnimation.thumbsDownFrames.length > 0) {
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: frameAnimation.thumbsDownFrames[0],
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-
-        thumbsDownAnimationPlane = new THREE.Mesh(geometry, material);
-        thumbsDownAnimationPlane.position.copy(position);
-        thumbsDownAnimationPlane.visible = false; // Start hidden
-
-        scene.add(thumbsDownAnimationPlane);
-    }
-
-    // Set up resize handlers for all planes
-    window.addEventListener('resize', () => {
-        const newFullSize = calculateFullscreenSize(zPosition);
-        const newSize = {
-            width: newFullSize.width * 0.25,
-            height: newFullSize.height * 0.6
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: name,
+            parallaxSpeed: speed,
+            originalScale: plane.scale.clone()
         };
 
-        const newPosition = new THREE.Vector3(size.width * 0.9, -size.height * 0.3, zPosition);
+        scene.add(plane);
+        sectionObjects.section2.parallaxLayers.push(plane);
+        storeLayerOriginalPosition(modelContainer);
 
-        // Update each plane
-        [normalAnimationPlane, thumbsUpAnimationPlane, thumbsDownAnimationPlane].forEach(plane => {
-            if (plane) {
-                plane.geometry.dispose();
-                plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
-                plane.position.copy(newPosition);
-            }
+        window.addEventListener('resize', () => {
+            const newSize = calculateFullscreenSize(zPosition);
+            plane.geometry.dispose();
+            plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
         });
     });
 }
 
-// Function to update animation frames
+function createSection2ClickableObject(imagePath, position, size, url, name = '') {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - window.innerHeight / 100, // Move down one screen height 
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            isClickable: true,
+            url: url,
+            name: name,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.1, 1.1, 1.1),
+            isHovered: false
+        };
+
+        scene.add(plane);
+        sectionObjects.section2.clickableObjects.push(plane);
+
+        console.log(`Created section 2 clickable object: ${name}`);
+    });
+}
+
+function createSection2() {
+    // Create all section 2 layers
+    createSection2ImageLayer(-6, 'assets/images/groceryfloor.png', 0.2, 'section2-background');
+    createSection2ImageLayer(-4, 'assets/images/section2-midground.png', 0.6, 'section2-midground');
+    createSection2ImageLayer(-2, 'assets/images/section2-foreground.png', 1.0, 'section2-foreground');
+
+    loadInteractiveModel();
+
+
+
+
+    // Add clickable objects in section 2
+    createSection2ClickableObject(
+        'assets/images/section2-button.png',
+        { x: 0, y: 0, z: -1.5 },
+        { width: 1.0, height: 0.5 },
+        'https://example.com/section2',
+        'section2-button'
+    );
+}
+
+
+// Add these mouse event handlers for model interaction
+function onModelMouseDown(event) {
+    // Only interact if we're in section 2
+    if (Math.abs(currentSection - 1) > 0.5) return;
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+    if (modelContainer) {
+        // Log to verify the model is being targeted
+        console.log("Checking for model intersection");
+
+        // Create an array of all objects to check (model container and its children)
+        const objectsToCheck = [modelContainer];
+        modelContainer.traverse(child => {
+            if (child.isMesh) {
+                objectsToCheck.push(child);
+            }
+        });
+
+        const intersects = raycaster.intersectObjects(objectsToCheck, true);
+        console.log("Intersects:", intersects.length);
+
+        if (intersects.length > 0) {
+            console.log("Model clicked");
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+
+            // Change cursor style
+            document.body.style.cursor = 'grabbing';
+
+            // Prevent other click events
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+}
+
+function onModelMouseMove(event) {
+    if (isZoomedIn) return;
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+    if (modelContainer) {
+        const objectsToCheck = [modelContainer];
+        modelContainer.traverse(child => {
+            if (child.isMesh) {
+                objectsToCheck.push(child);
+            }
+        });
+
+        const intersects = raycaster.intersectObjects(objectsToCheck, true);
+
+        if (intersects.length > 0) {
+            document.body.style.cursor = 'grab'; // Show grab cursor when hovering over model
+        } else if (!isDragging) {
+            document.body.style.cursor = 'default'; // Reset cursor if not dragging
+        }
+    }
+
+    if (!isDragging) return;
+
+    const deltaMove = {
+        x: event.clientX - previousMousePosition.x,
+        y: event.clientY - previousMousePosition.y
+    };
+
+    modelRotation.y += deltaMove.x * 0.01;
+    modelRotation.x += deltaMove.y * 0.01;
+    modelContainer.rotation.y = modelRotation.y;
+    modelContainer.rotation.x = Math.max(Math.min(modelRotation.x, Math.PI / 4), -Math.PI / 4);
+
+    previousMousePosition = { x: event.clientX, y: event.clientY };
+}
+
+
+function onModelMouseUp() {
+    isDragging = false;
+    // Reset cursor style back to default
+    document.body.style.cursor = 'default';
+}
+
+// Make sure other handlers don't interfere with zoomed state
+// Add this check to any function that might modify object scale or position
+function checkZoomedState() {
+    // If we're zoomed in, prevent other modifications
+    if (isZoomedIn) return true;
+    return false;
+}
+
+
+// ============================================================
+// SECTION 3: DESK VIEW WITH INTERACTIVE OBJECTS
+// ============================================================
+
+// Variables for section 3 zoom state
+let isZoomedIn = false;
+let currentZoomedObject = null;
+let originalCameraPosition = null;
+
+// Function to create image layers for section 3
+function createSection3ImageLayer(zPosition, imagePath, speed, name = '') {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const size = calculateFullscreenSize(zPosition, 0.3); // Add extra margin for panning
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.z = zPosition;
+
+        // Position for section 3 (starts two screen heights down)
+        const sectionSpacing = window.innerHeight / 70; //CHANGE THIS VALUE FOR STLYLISTIC PURPISES
+        plane.position.y = -sectionSpacing * 2;
+
+        // Store metadata
+        plane.userData = {
+            section: 'section3',
+            name: name,
+            parallaxSpeed: speed,
+            originalScale: plane.scale.clone()
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+        sectionObjects.section3.parallaxLayers.push(plane);
+
+        window.addEventListener('resize', () => {
+            const newSize = calculateFullscreenSize(zPosition, 0.3);
+            plane.geometry.dispose();
+            plane.geometry = new THREE.PlaneGeometry(newSize.width, newSize.height);
+        });
+    });
+}
+
+// Function to create clickable objects in section 3 that can be zoomed in on
+function createSection3ZoomableObject(imagePath, position, size, name = '', zoomDetails = {}) {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 3
+        const sectionSpacing = window.innerHeight / 60; //CHANGE THIS FOR SLISTIC PURPOSES
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing * 2,
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section3',
+            isClickable: true,
+            isZoomable: true,
+            name: name,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+
+            // Zoom properties
+            zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+            zoomScale: zoomDetails.scale || 2,
+            zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 },
+            closeupTexture: null,
+            closeupPath: zoomDetails.closeupPath || null
+        };
+
+        // If a closeup texture is provided, load it
+        if (zoomDetails.closeupPath) {
+            textureLoader.load(zoomDetails.closeupPath, (closeupTexture) => {
+                plane.userData.closeupTexture = closeupTexture;
+            });
+        }
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+        sectionObjects.section3.clickableObjects.push(plane);
+        sectionObjects.section3.parallaxLayers.push(plane);
+
+        console.log(`Created zoomable object in section 3: ${name}`);
+    });
+}
+
+// Function to handle clicking on a zoomable object
+function handleZoomableObjectClick(object) {
+    if (!object || !object.userData.isZoomable) return;
+
+    console.log(`Clicked on zoomable object: ${object.userData.name}`);
+
+    if (isZoomedIn && currentZoomedObject === object) {
+        // We're already zoomed in on this object, zoom out
+        zoomOut();
+    } else {
+        // Zoom in on this object
+        zoomInOn(object);
+    }
+}
+
+// Function to zoom in on an object
+function zoomInOn(object) {
+    if (!object || isZoomedIn) return;
+
+    // Store current state
+    isZoomedIn = true;
+    currentZoomedObject = object;
+    originalCameraPosition = {
+        position: camera.position.clone(),
+        rotation: camera.rotation.clone()
+    };
+
+    // If we have a closeup texture, save the original first and then switch
+    if (object.userData.closeupTexture) {
+        // Save the original texture
+        object.userData.originalTexture = object.material.map;
+        // Also save path for fallback
+        object.userData.originalTexturePath = object.userData.closeupPath.replace('_closeup', '');
+
+        // Then switch to closeup
+        object.material.map = object.userData.closeupTexture;
+        object.material.needsUpdate = true;
+    }
+
+    // Create a semi-transparent overlay to dim other elements
+    createOverlay();
+
+    // Disable scrolling while zoomed in
+    scrollingEnabled = false;
+
+    // Add a "back" button
+    addBackButton();
+
+    // Apply zoom animation
+    animateZoomIn(object);
+
+    // Add click outside to zoom out
+    document.addEventListener('click', handleClickOutside);
+}
+// Function to zoom out
+function zoomOut() {
+    if (!isZoomedIn || !currentZoomedObject) return;
+
+    // Switch back to original texture if needed
+    if (currentZoomedObject.userData.closeupTexture) {
+        // Don't try to access the texture path directly
+        // Instead, use the original texture that was saved or reload it
+        if (currentZoomedObject.userData.originalTexture) {
+            // If we saved the original texture, use it
+            currentZoomedObject.material.map = currentZoomedObject.userData.originalTexture;
+            currentZoomedObject.material.needsUpdate = true;
+        } else {
+            // Otherwise, reload from the path (without trying to access .src)
+            const originalTexturePath = currentZoomedObject.userData.originalTexturePath;
+            if (originalTexturePath) {
+                new THREE.TextureLoader().load(originalTexturePath, (texture) => {
+                    currentZoomedObject.material.map = texture;
+                    currentZoomedObject.material.needsUpdate = true;
+                });
+            }
+        }
+    }
+
+    // Remove overlay
+    removeOverlay();
+
+    // Enable scrolling again
+    scrollingEnabled = true;
+
+    // Remove back button
+    removeBackButton();
+
+    // Remove click outside handler
+    document.removeEventListener('click', handleClickOutside);
+
+    // Apply zoom out animation
+    animateZoomOut();
+
+    // Clear state
+    isZoomedIn = false;
+    currentZoomedObject = null;
+}
+
+// Function to animate zooming in
+function animateZoomIn(object) {
+    const zoomPosition = object.userData.zoomPosition;
+    const zoomScale = object.userData.zoomScale;
+    const zoomRotation = object.userData.zoomRotation;
+
+    // // Store original properties to restore later
+    // object.userData.originalPosition = object.position.clone();
+    // object.userData.originalRotation = object.rotation.clone();
+    // object.userData.originalScale = object.scale.clone();
+    // Move object to center of screen and scale it up
+    if (typeof gsap !== 'undefined') {
+        // Animate with GSAP
+        gsap.to(object.position, {
+            x: 0, // Center horizontally
+            y: camera.position.y, // Match camera height
+            z: -2, // Bring forward
+            duration: 0.8,
+            ease: "power2.out"
+        });
+
+        gsap.to(object.scale, {
+            x: zoomScale,
+            y: zoomScale,
+            z: zoomScale,
+            duration: 1.5,
+            ease: "power2.out",
+            onComplete: () => {
+                console.log("Zoom-in complete, object stays big!");
+                isZoomedIn = true; // Ensure state is properly set
+            }
+        });
+
+        // Make sure rotation is set properly
+        gsap.to(object.rotation, {
+            x: zoomRotation.x,
+            y: zoomRotation.y,
+            z: zoomRotation.z,
+            duration: 0.8,
+            ease: "power2.out"
+        });
+    } else {
+        // Fallback without GSAP
+        object.position.set(0, camera.position.y, -2);
+        object.scale.set(zoomScale, zoomScale, zoomScale);
+        object.rotation.set(zoomRotation.x, zoomRotation.y, zoomRotation.z);
+        object.userData.isZoomedIn = true;
+
+        console.log("Fallback zoom-in complete, object stays big!");
+    }
+
+    // Fade out other objects
+    sectionObjects.section3.parallaxLayers.forEach(layer => {
+        if (layer !== object) {
+            gsap.to(layer.material, {
+                opacity: 0.2,
+                duration: 0.5
+            });
+        }
+    });
+}
+
+// Function to animate zooming out
+function animateZoomOut() {
+    const object = currentZoomedObject;
+    if (!object) return;
+
+    // Animate back to original position and scale
+    gsap.to(object.position, {
+        x: object.userData.originalX,
+        y: object.userData.originalY,
+        z: object.userData.originalZ,
+        duration: 0.8,
+        ease: "power2.out"
+    });
+
+    gsap.to(object.scale, {
+        x: 1,
+        y: 1,
+        z: 1,
+        duration: 0.8,
+        ease: "power2.out"
+    });
+
+    gsap.to(object.rotation, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: 0.8,
+        ease: "power2.out"
+    });
+
+    // Fade in other objects
+    sectionObjects.section3.parallaxLayers.forEach(layer => {
+        gsap.to(layer.material, {
+            opacity: 1,
+            duration: 0.5
+        });
+    });
+}
+
+// Create semi-transparent overlay
+function createOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'zoom-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.zIndex = '90';
+    overlay.style.pointerEvents = 'none'; // Allow clicks to pass through
+    document.body.appendChild(overlay);
+}
+
+// Remove overlay
+function removeOverlay() {
+    const overlay = document.getElementById('zoom-overlay');
+    if (overlay) {
+        overlay.parentNode.removeChild(overlay);
+    }
+}
+
+// Add back button
+function addBackButton() {
+    const backBtn = document.createElement('button');
+    backBtn.id = 'back-button';
+    backBtn.innerHTML = '← Back';
+    backBtn.style.position = 'fixed';
+    backBtn.style.top = '20px';
+    backBtn.style.left = '20px';
+    backBtn.style.padding = '10px 20px';
+    backBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    backBtn.style.color = 'white';
+    backBtn.style.border = 'none';
+    backBtn.style.borderRadius = '5px';
+    backBtn.style.cursor = 'pointer';
+    backBtn.style.zIndex = '100';
+    backBtn.style.fontFamily = 'Arial, sans-serif';
+
+    backBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        zoomOut();
+    });
+
+    document.body.appendChild(backBtn);
+}
+
+// Remove back button
+function removeBackButton() {
+    const backBtn = document.getElementById('back-button');
+    if (backBtn) {
+        backBtn.parentNode.removeChild(backBtn);
+    }
+}
+
+// Modify the handleClickOutside function to prevent automatic zoom out
+function handleClickOutside(e) {
+    // Only check if we're actually zoomed in
+    if (!isZoomedIn || !currentZoomedObject) return;
+
+    // Check if this is a click on the back button (which has its own handler)
+    if (e.target.id === 'back-button') {
+        return; // Let the back button handler handle this
+    }
+
+    // Check if click was outside the zoomed object
+    const mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+    const intersects = raycaster.intersectObject(currentZoomedObject);
+
+    // Only zoom out if click is outside the object
+    if (intersects.length === 0) {
+        zoomOut();
+    }
+}
+// Update the mouse click handler to handle zoomable objects
+function onMouseClick(event) {
+    // Update the picking ray with the camera and mouse position
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+    // Get all clickable objects from all sections
+    const allClickableObjects = [];
+    Object.values(sectionObjects).forEach(section => {
+        if (section.clickableObjects) {
+            allClickableObjects.push(...section.clickableObjects);
+        }
+    });
+
+    // Calculate objects intersecting the picking ray
+    const intersects = raycaster.intersectObjects(allClickableObjects);
+
+    // Handle clicked object
+    if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+
+        if (clickedObject.userData.isZoomable && currentSection >= 1.5) {
+            // Handle zoom action
+            handleZoomableObjectClick(clickedObject);
+        } else if (clickedObject.userData.url) {
+            // Handle URL action
+            window.open(clickedObject.userData.url, '_blank');
+        }
+
+        console.log(`Clicked on ${clickedObject.userData.name}`);
+    }
+}
+
+// Create section 3
+function createSection3() {
+    console.log("Creating section 3...");
+    // Background layers with parallax
+    createSection3ImageLayer(-6, 'assets/images/section3/desk_background.png', 0.2, 'desk-background');
+    createSection3ImageLayer(-5, 'assets/images/section3/desk_surface.png', 0.4, 'desk-surface');
+    createSection3ImageLayer(-4, 'assets/images/section3/desk_items.png', 0.6, 'desk-items');
+    // createSection3ImageLayer(-3, 'assets/images/section3/books.png', 0.7, 'books');
+    createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
+
+    // Add zoomable objects
+    createSection3ZoomableObject(
+        'assets/images/section3/bulletin_board.png',
+        { x: -1.5, y: 0.5, z: -2.5 },
+        { width: 1.0, height: 1.2 },
+        'bulletin-board',
+        {
+            closeupPath: 'assets/images/section3/bulletin_board.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: -2 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+
+
+    // Add more zoomable objects as needed...
+}
+
+// ============================================================
+// INTERACTION HANDLERS
+// ============================================================
 function updateAnimationFrame(timestamp) {
     if (!frameAnimation.framesLoaded) return;
 
@@ -513,30 +1565,37 @@ function updateAnimationFrame(timestamp) {
             thumbsDownAnimationPlane.material.map = frameAnimation.thumbsDownFrames[frameAnimation.thumbsDownFrameIndex];
             thumbsDownAnimationPlane.material.needsUpdate = true;
         }
-
-        // Update grocery shelf animation if loaded
-        if (shelfAnimation.framesLoaded) {
-            // Check if enough time has passed for shelf animation
-            const shelfElapsed = timestamp - shelfAnimation.lastFrameTime;
-            const shelfFrameDuration = 1000 / shelfAnimation.fps;
-
-            if (shelfElapsed >= shelfFrameDuration) {
-                shelfAnimation.lastFrameTime = timestamp;
-                shelfAnimation.frameIndex = (shelfAnimation.frameIndex + 1) % shelfAnimation.frames.length;
-
-                // Find and update the grocery shelf layer
-                parallaxLayers.forEach(layer => {
-                    if (layer.userData.isAnimated && layer.userData.name === 'groceryshelf') {
-                        layer.material.map = shelfAnimation.frames[shelfAnimation.frameIndex];
-                        layer.material.needsUpdate = true;
-                    }
-                });
-            }
-        }
     }
 }
 
-// Function to process gesture-based scrolling
+// Update the processModelPanning function for WASD
+function processModelPanning() {
+    if (!modelContainer) return;
+
+    const panAmount = panSpeed * zoomLevel;
+    let newX = modelContainer.position.x;
+    let newY = modelContainer.position.y;
+
+    // Pan left/right with WASD
+    if (keysPressed[panKeys.left]) {
+        newX = Math.min(panLimits.maxX, modelContainer.position.x + panAmount);
+    } else if (keysPressed[panKeys.right]) {
+        newX = Math.max(panLimits.minX, modelContainer.position.x - panAmount);
+    }
+
+    // Pan up/down with WASD
+    const baseY = -window.innerHeight / 45 + 1;
+    if (keysPressed[panKeys.up]) {
+        newY = Math.max(baseY + panLimits.minY, modelContainer.position.y - panAmount);
+    } else if (keysPressed[panKeys.down]) {
+        newY = Math.min(baseY + panLimits.maxY, modelContainer.position.y + panAmount);
+    }
+
+    // Apply new position
+    modelContainer.position.x = newX;
+    modelContainer.position.y = newY;
+}
+
 function processGestureScrolling(isPointingUp, isPointingDown) {
     if (!scrollingEnabled) return;
 
@@ -561,12 +1620,10 @@ function processGestureScrolling(isPointingUp, isPointingDown) {
     }
 }
 
-// Function to trigger thumbs up animation effects
 function triggerThumbsUpAnimation() {
     if (thumbsUpAnimationPlane) {
         // Save original scale
         const originalScale = thumbsUpAnimationPlane.scale.clone();
-
 
         // Scale up animation
         const scaleUp = () => {
@@ -586,7 +1643,6 @@ function triggerThumbsUpAnimation() {
     }
 }
 
-// Function to trigger thumbs down animation effects
 function triggerThumbsDownAnimation() {
     if (thumbsDownAnimationPlane) {
         // Shake animation
@@ -622,52 +1678,194 @@ function triggerThumbsDownAnimation() {
     }, 300);
 }
 
-// Create layers with appropriate z-positions and parallax speeds
-function createScene() {
-    createImageLayer(-6, 'assets/images/groceryfloor.png', 0.2, 8, 'groceryfloor');
-    createImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf');
-    createImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2');
-    createImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang');
-    createImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront');
+// Mouse interaction handlers
+function onMouseMove(event) {
+    if (isZoomedIn) return;
 
 
-    // Add clickable objects
-    createParallaxClickable(
-        'assets/images/hmmbottle.png',
-        { x: -7.7, y: -1.3, z: -3 },
-        { width: 3, height: 3 },
-        0.2,
-        'https://youtu.be/dQw4w9WgXcQ',
-        "???",
-        2
-    );
 
-    // Set up camera
-    camera.position.z = 5;
+    if (!isDragging) return;
 
-    // Enable scrolling after intro animation completes
-    setTimeout(() => {
-        scrollingEnabled = true;
-    }, 3000);
+    // When applying hover scaling:
+    allClickableObjects.forEach(obj => {
+        // Skip scale changes if we're zoomed in
+        if (isZoomedIn && obj === currentZoomedObject) return;
 
-    // Preload animation frames
-    preloadAnimationFrames();
-    preloadShelfFrames(); // Add this line to preload the shelf frames
+        if (obj.userData.isHovered) {
+            // Smoothly scale up
+            obj.scale.lerp(obj.userData.hoverScale, 0.1);
+        } else {
+            // Smoothly scale down to original
+            obj.scale.lerp(obj.userData.originalScale, 0.1);
+        }
+    });
+
+    const deltaMove = {
+        x: event.clientX - previousMousePosition.x,
+        y: event.clientY - previousMousePosition.y
+    };
+
+    // Update model rotation based on mouse movement
+    if (modelContainer) {
+        // Update rotation values
+        modelRotation.y += deltaMove.x * 0.01;
+        modelRotation.x += deltaMove.y * 0.01;
+
+        // Apply rotation around the model's center, not its origin
+        // First, save the current position
+        const currentPosition = modelContainer.position.clone();
+
+        // Reset rotation
+        modelContainer.rotation.set(0, 0, 0);
+
+        // Rotate around center axes
+        modelContainer.rotateY(modelRotation.y);  // Rotate around Y axis
+
+        // Limit and apply X rotation
+        const limitedXRotation = Math.max(Math.min(modelRotation.x, Math.PI / 4), -Math.PI / 4);
+        modelContainer.rotateX(limitedXRotation);  // Rotate around X axis
+
+        // Ensure position doesn't change
+        modelContainer.position.copy(currentPosition);
+    }
+
+    previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+    };
 }
 
+
+// ============================================================
+// ANIMATION AND RENDERING
+// ============================================================
+function animate(timestamp) {
+    requestAnimationFrame(animate);
+
+    updateModelVisibility();
+
+    // Update animation frames
+    updateAnimationFrame(timestamp);
+
+    processPanning();
+
+    // Handle intro animation
+    if (!animationState.introComplete) {
+        animationState.introProgress += animationState.introSpeed;
+
+        if (animationState.introProgress >= 1) {
+            animationState.introComplete = true;
+        }
+
+        // Animate section 1 layers falling into place
+        sectionObjects.section1.parallaxLayers.forEach(layer => {
+            // Only start animating after the layer's delay has passed
+            const layerProgress = Math.max(0, animationState.introProgress - layer.userData.initialDelay);
+
+            if (layerProgress > 0) {
+                // Easing function: ease-out cubic
+                const easedProgress = 1 - Math.pow(1 - Math.min(1, layerProgress / (1 - layer.userData.initialDelay)), 3);
+
+                // Move from initial offset position to target position
+                if (layer.userData.isClickable && layer.userData.originY !== undefined) {
+                    // For clickable objects, we move from initial Y + offset to initial Y
+                    layer.position.y = layer.userData.originY + (layer.userData.initialOffset * (1 - easedProgress));
+                } else {
+                    // For regular layers, use the standard animation
+                    layer.position.y = layer.userData.initialOffset * (1 - easedProgress);
+                }
+            }
+        });
+
+        // Animate normal animation plane intro
+        if (normalAnimationPlane) {
+            const planeProgress = Math.max(0, animationState.introProgress - 0.8); // Delay appearance
+
+            if (planeProgress > 0) {
+                // Elastic easing for bouncy effect
+                const t = Math.min(1, planeProgress / 0.2); // Complete over 20% of total time
+                const easedProgress = t === 0 ? 0 : t === 1 ? 1 :
+                    Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+
+                // Update the target Y position to match our new higher position
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2;
+                normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
+            }
+        }
+    } else {
+        // Regular parallax scrolling effect once intro is complete
+        currentSection += (targetSection - currentSection) * 0.05;
+        camera.position.y = -currentSection * 10;
+
+        // Parallax effect for section 1
+        sectionObjects.section1.parallaxLayers.forEach(layer => {
+            if (layer.userData.isClickable && layer.userData.originY !== undefined) {
+                // For clickable objects, move them relative to their original position
+                layer.position.y = layer.userData.originY + (currentSection * 10 * layer.userData.parallaxSpeed);
+            } else {
+                // For regular layers, use the standard parallax
+                layer.position.y = currentSection * 10 * layer.userData.parallaxSpeed;
+            }
+        });
+
+        // Update groceryfront clipping plane if it exists
+        if (groceryFrontLayer) {
+            const normalizedScroll = scrollY / 2;
+            updateClipPlane(groceryFrontLayer, normalizedScroll);
+        }
+    }
+
+    // Add smooth hover transitions for clickable objects
+    const allClickableObjects = [];
+    Object.values(sectionObjects).forEach(section => {
+        if (section.clickableObjects) {
+            allClickableObjects.push(...section.clickableObjects);
+        }
+    });
+
+    allClickableObjects.forEach(obj => {
+        if (obj.userData.isHovered) {
+            // Smoothly scale up
+            obj.scale.lerp(obj.userData.hoverScale, 0.1);
+        } else {
+            // Smoothly scale down to original
+            obj.scale.lerp(obj.userData.originalScale, 0.1);
+        }
+    });
+
+    renderer.render(scene, camera);
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
 // Handle scrolling
+// Also update the wheel event handler to keep DOM and Three.js in sync
 window.addEventListener('wheel', (event) => {
     if (!scrollingEnabled) return;
 
     scrollY += event.deltaY * 0.001;
-    scrollY = Math.max(0, Math.min(scrollY, 2));
+    scrollY = Math.max(0, Math.min(scrollY, 3));
     targetSection = Math.round(scrollY);
 
     document.querySelectorAll('.dot').forEach((dot, index) => {
         dot.classList.toggle('active', index === targetSection);
     });
-});
 
+    // If we've scrolled to a new section, sync the DOM scroll position
+    if (Math.abs(scrollY - targetSection) < 0.1) {
+        const sectionHeight = window.innerHeight;
+        const targetScrollPosition = targetSection * sectionHeight;
+
+        // Use requestAnimationFrame to avoid interrupting the wheel event
+        requestAnimationFrame(() => {
+            window.scrollTo({
+                top: targetScrollPosition,
+                behavior: 'smooth'
+            });
+        });
+    }
+});
 // Navigation dots click handler
 document.querySelectorAll('.dot').forEach(dot => {
     dot.addEventListener('click', () => {
@@ -679,97 +1877,54 @@ document.querySelectorAll('.dot').forEach(dot => {
         document.querySelectorAll('.dot').forEach((d, index) => {
             d.classList.toggle('active', index === targetSection);
         });
+        // Scroll the DOM content to match
+        const sectionHeight = window.innerHeight;
+        const targetScrollPosition = targetSection * sectionHeight;
+
+        window.scrollTo({
+            top: targetScrollPosition,
+            behavior: 'smooth'
+        });
     });
 });
 
-// Animation loop
-function animate(timestamp) {
-    requestAnimationFrame(animate);
+// Mouse interaction handlers
+window.addEventListener('mousemove', onMouseMove, false);
+window.addEventListener('click', onMouseClick, false);
 
-    // Update animation frames
-    updateAnimationFrame(timestamp);
 
-    // Handle intro animation
-    if (!animationState.introComplete) {
-        animationState.introProgress += animationState.introSpeed;
+// Add the event listeners for model interaction
+document.addEventListener('mousedown', onModelMouseDown, false);
+document.addEventListener('mousemove', onModelMouseMove, false);
+document.addEventListener('mouseup', onModelMouseUp, false);
 
-        if (animationState.introProgress >= 1) {
-            animationState.introComplete = true;
-        }
+// Listen for key down events
+document.addEventListener('keydown', function (event) {
+    // Store key state
+    keysPressed[event.key] = true;
 
-        // Animate each layer falling into place with easing and delay
-        parallaxLayers.forEach(layer => {
-            // Only start animating after the layer's delay has passed
-            const layerProgress = Math.max(0, animationState.introProgress - layer.userData.initialDelay);
+    // Handle zoom controls for all sections
+    // Zoom in with + or =
+    if (event.key === '+' || event.key === '=') {
+        zoomIn();
+    }
+    // Zoom out with - or _
+    else if (event.key === '-' || event.key === '_') {
+        zoomOut();
+    }
+    // Arrow keys for panning (when holding Shift)
+    else if (event.shiftKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+        isPanning = true;
+        // Prevent default scrolling behavior
+        event.preventDefault();
 
-            if (layerProgress > 0) {
-                // Easing function: ease-out cubic
-                const easedProgress = 1 - Math.pow(1 - Math.min(1, layerProgress / (1 - layer.userData.initialDelay)), 3);
-                // Move from initial offset position to target position
-                // For clickable objects this works differently
-                if (layer.userData.isClickable) {
-                    // For clickable objects, we move from initial Y + offset to initial Y
-                    layer.position.y = layer.userData.originY + (layer.userData.initialOffset * (1 - easedProgress));
-                } else {
-                    // For regular layers, use the standard animation
-                    layer.position.y = layer.userData.initialOffset * (1 - easedProgress);
-                }
-            }
-        });
-
-        // Animate normal animation
-        // Animate normal animation plane intro
-        if (normalAnimationPlane || thumbsUpAnimationPlane || thumbsDownAnimationPlane) {
-            const planeProgress = Math.max(0, animationState.introProgress - 0.8); // Delay appearance
-
-            if (planeProgress > 0) {
-                // Elastic easing for bouncy effect
-                const t = Math.min(1, planeProgress / 0.2); // Complete over 20% of total time
-                const easedProgress = t === 0 ? 0 : t === 1 ? 1 :
-                    Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
-
-                const targetY = -calculateFullscreenSize(-1.5).height * 0.1; // Final position
-                normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
-                thumbsDownAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
-                thumbsUpAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
-            }
-        }
-    } else {
-        // Regular parallax scrolling effect once intro is complete
-        currentSection += (targetSection - currentSection) * 0.05;
-        camera.position.y = -currentSection * 10;
-
-        parallaxLayers.forEach(layer => {
-            if (layer.userData.isClickable) {
-                // For clickable objects, move them relative to their original position
-                layer.position.y = layer.userData.originY + (currentSection * 10 * layer.userData.parallaxSpeed);
-            } else {
-                // For regular layers, use the standard parallax
-                layer.position.y = currentSection * 10 * layer.userData.parallaxSpeed;
-            }
-        });
-
-        // Update groceryfront clipping plane
-        if (groceryFrontLayer) {
-            const normalizedScroll = scrollY / 2; // Normalize to 0-1 range
-            updateClipPlane(groceryFrontLayer, normalizedScroll);
+        // Additional explicit handling for up/down arrows with shift
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            // Ensure no scrolling happens
+            event.stopPropagation();
         }
     }
-
-    // Add smooth hover transitions for clickable objects
-    clickableObjects.forEach(obj => {
-        if (obj.userData.isHovered) {
-            // Smoothly scale up
-            obj.scale.lerp(obj.userData.hoverScale, 0.1);
-        } else {
-            // Smoothly scale down to original
-            obj.scale.lerp(obj.userData.originalScale, 0.1);
-        }
-    });
-
-
-    renderer.render(scene, camera);
-}
+});
 
 // Handle window resize
 window.addEventListener('resize', () => {
@@ -839,6 +1994,17 @@ window.addEventListener('thumbsDown', (event) => {
                 document.querySelectorAll('.dot').forEach((dot, index) => {
                     dot.classList.toggle('active', index === targetSection);
                 });
+
+                // Scroll the actual DOM content
+                // This is the key addition to fix the text scrolling issue
+                const sectionHeight = window.innerHeight;
+                const targetScrollPosition = targetSection * sectionHeight;
+
+                // Smoothly scroll to the target section
+                window.scrollTo({
+                    top: targetScrollPosition,
+                    behavior: 'smooth'
+                });
             }
 
             // Then after a delay, show the thumbs down animation
@@ -875,6 +2041,34 @@ window.addEventListener('pointingUp', (event) => {
 window.addEventListener('pointingDown', (event) => {
     processGestureScrolling(false, event.detail.active);
 });
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+function createScene() {
+    setupKeyboardControls();
+    // Create each section
+    createSection1();
+    createSection2();
+    createSection3();
+    // Section 3 would be implemented similarly
+
+    console.log("All sections created:",
+        "Section1:", sectionObjects.section1.parallaxLayers.length,
+        "Section2:", sectionObjects.section2.parallaxLayers.length,
+        "Section3:", sectionObjects.section3.parallaxLayers.length);
+
+    // Set up camera
+    camera.position.z = 5;
+
+    // Enable scrolling after intro animation completes
+    setTimeout(() => {
+        scrollingEnabled = true;
+    }, 3000);
+
+    // Preload animation frames
+    preloadAnimationFrames();
+}
 
 // Initialize the scene when the document is loaded
 document.addEventListener('DOMContentLoaded', () => {

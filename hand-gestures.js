@@ -30,12 +30,12 @@ function initHandTracking() {
 
     // Create canvas for debugging (optional)
     const canvasElement = document.createElement('canvas');
-    canvasElement.style.position = 'absolute';
+    canvasElement.style.position = 'fixed';
     canvasElement.style.top = '0';
     canvasElement.style.left = '0';
-    canvasElement.style.zIndex = '100';
-    canvasElement.style.width = '160px';
-    canvasElement.style.height = '120px';
+    canvasElement.style.zIndex = '200';
+    canvasElement.style.width = '240px';
+    canvasElement.style.height = '180px';
     canvasElement.style.transform = 'scaleX(-1)'; // Mirror the display
     document.body.appendChild(canvasElement);
 
