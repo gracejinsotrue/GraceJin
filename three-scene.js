@@ -1,5 +1,6 @@
 // three-scene.js with organized section-based structure
 
+
 // ============================================================
 // GLOBAL SCENE SETUP
 // ============================================================
@@ -32,7 +33,8 @@ directionalLight.shadow.camera.bottom = -10;
 scene.add(directionalLight);
 
 
-scene.add(directionalLight);
+
+
 
 
 // Set up raycaster for mouse interaction
@@ -177,6 +179,153 @@ let modelLoaded = false;
 // ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
+
+
+function createStaticText() {
+    const fontLoader = new THREE.FontLoader();
+    const textDepth = -6; // Same depth as your animated text
+
+    fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+        // Create text geometry with larger size
+        const textGeometry = new THREE.TextGeometry('GRACE JIN', {
+            font: font,
+            size: 2,
+            height: 0.1,
+            curveSegments: 12,
+            bevelEnabled: false
+        });
+
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+
+        // Center the text horizontally
+        textGeometry.center();
+
+        // Position above the animated text
+        textMesh.position.set(-1.5, 6.5, textDepth); // Higher y-position than animated text
+        textMesh.rotation.x = -0.2; // Same tilt as animated text
+
+        scene.add(textMesh);
+    });
+}
+
+function createStaticText2() {
+    const fontLoader = new THREE.FontLoader();
+    const textDepth = -6; // Same depth as your animated text
+
+    fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+        // Create text geometry with larger size
+        const textGeometry = new THREE.TextGeometry('Cornell CS + AI \'27 ', {
+            font: font,
+            size: 0.5,
+            height: 0.1,
+            curveSegments: 12,
+            bevelEnabled: false
+        });
+
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+
+        // Center the text horizontally
+        textGeometry.center();
+
+        // Position above the animated text
+        textMesh.position.set(-1.5, 5, textDepth); // Higher y-position than animated text
+        textMesh.rotation.x = -0.2; // Same tilt as animated text
+
+        scene.add(textMesh);
+    });
+}
+function createAnimatedText() {
+    const fontLoader = new THREE.FontLoader();
+    const textDepth = -6;
+
+    fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+        const textGeometry = new THREE.TextGeometry('', {
+            font: font,
+            size: 0.5,
+            height: 0.1,
+            curveSegments: 12,
+            bevelEnabled: false
+        });
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+
+        textMesh.position.set(-1.5, 4, textDepth);
+        textMesh.rotation.x = -0.2;
+        scene.add(textMesh);
+
+        // Array of words to cycle through
+        const words = ["Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor."];
+        let wordIndex = 0;
+        let currentText = '';
+        let isTyping = true;
+        let charIndex = 0;
+        let lastUpdateTime = 0;
+        const typingSpeed = 50; // milliseconds per character
+
+        // Add debug logging
+        console.log("Starting text animation with words:", words);
+
+        function animateText(currentTime) {
+            // Only update the text at specified intervals
+            if (currentTime - lastUpdateTime > typingSpeed) {
+                lastUpdateTime = currentTime;
+
+                if (isTyping) {
+                    // Get the current word from the array
+                    const currentWord = words[wordIndex];
+
+                    if (charIndex < currentWord.length) {
+                        currentText += currentWord[charIndex];
+                        charIndex++;
+                    } else {
+                        // Pause at the end of typing before backspacing
+                        isTyping = false;
+                        // Don't immediately start backspacing - wait a bit
+                        setTimeout(() => {
+                            lastUpdateTime = performance.now(); // Reset timer
+                        }, 1000);
+                    }
+                } else {
+                    if (currentText.length > 0) {
+                        currentText = currentText.slice(0, -1);
+                    } else {
+                        // Move to the next word when backspacing is complete
+                        wordIndex = (wordIndex + 1) % words.length;
+                        console.log("Switching to next word, index:", wordIndex, "word:", words[wordIndex]);
+
+                        // Switch back to typing after a short delay
+                        isTyping = true;
+                        charIndex = 0;
+                        // Don't immediately start typing - wait a bit
+                        setTimeout(() => {
+                            lastUpdateTime = performance.now(); // Reset timer
+                        }, 500);
+                    }
+                }
+
+                // Only update geometry when text changes
+                textMesh.geometry.dispose();
+                textMesh.geometry = new THREE.TextGeometry(currentText, {
+                    font: font,
+                    size: 0.5,
+                    height: 0.1,
+                    curveSegments: 12,
+                    bevelEnabled: false
+                });
+
+                textMesh.geometry.center();
+            }
+
+            // Continue animation loop
+            requestAnimationFrame(animateText);
+        }
+
+        // Start the animation with timestamp
+        requestAnimationFrame(animateText);
+    });
+}
 function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //should extra margin be in the param
     const fov = camera.fov * (Math.PI / 180);
     const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
@@ -847,6 +996,182 @@ function storeLayerOriginalPosition(layer) {
 // ============================================================
 // SECTION 1: GROCERY STORE / MAIN PARALLAX
 // ============================================================
+
+
+
+// Track which items have been clicked
+const groceryItems = {
+    greenonion: { name: "Green Onion", collected: false },
+    ginger: { name: "Ginger", collected: false },
+    soysauce: { name: "Soy Sauce", collected: false },
+    garlic: { name: "Garlic", collected: false }
+
+
+
+};
+
+
+// Initialize the HTML for the grocery list
+function initializeGroceryList() {
+    const groceryListElement = document.getElementById('grocery-list');
+
+    // Clear existing content
+    const listElement = groceryListElement.querySelector('ul');
+    listElement.innerHTML = '';
+
+    // Add each item to the list
+    Object.entries(groceryItems).forEach(([key, item]) => {
+        const listItem = document.createElement('li');
+        listItem.setAttribute('data-item', key);
+        listItem.textContent = item.name;
+        if (item.collected) {
+            listItem.classList.add('checked');
+        }
+        listElement.appendChild(listItem);
+    });
+
+    console.log("Grocery list initialized with items:", Object.keys(groceryItems));
+}
+
+// Function to check if all items are collected
+function checkAllItemsCollected() {
+    return Object.values(groceryItems).every(item => item.collected === true);
+}
+
+
+// Function to update the grocery list UI
+function updateGroceryList(itemKey) {
+    console.log("Updating grocery list for item:", itemKey);
+
+    // Update the model data
+    if (groceryItems[itemKey]) {
+        groceryItems[itemKey].collected = true;
+
+        // Update the UI
+        const listItem = document.querySelector(`#grocery-list li[data-item="${itemKey}"]`);
+        if (listItem) {
+            listItem.classList.add('checked');
+            console.log(`Marked ${itemKey} as collected`);
+        } else {
+            console.error(`List item element for ${itemKey} not found`);
+        }
+
+        // Check if all items are collected
+        if (checkAllItemsCollected()) {
+            document.getElementById('congrats-message').style.display = 'block';
+            console.log("All items collected! Showing congratulations message.");
+        }
+    } else {
+        console.error(`Item ${itemKey} not found in groceryItems`);
+    }
+}
+
+
+// Modify the onMouseClick function to handle grocery item clicks
+function onMouseClick(event) {
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+    const allClickableObjects = [];
+    Object.values(sectionObjects).forEach(section => {
+        if (section.clickableObjects) {
+            allClickableObjects.push(...section.clickableObjects);
+        }
+    });
+    console.log("Checking for clicks. Clickable objects:", allClickableObjects.length);
+
+    const intersects = raycaster.intersectObjects(allClickableObjects);
+
+    if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        console.log("Clicked object:", clickedObject.userData);
+
+        // Check if the clicked object is a grocery item
+        if (clickedObject.userData.name && collectedItems[clickedObject.userData.name] !== undefined) {
+            console.log("Collected item:", clickedObject.userData.name); // Debugging
+            // Mark the item as collected
+            collectedItems[clickedObject.userData.name] = true;
+
+            // Update the grocery list UI
+            updateGroceryList(clickedObject.userData.name);
+
+            // Optionally, hide or disable the clicked object
+            clickedObject.visible = false;
+        }
+
+    }
+}
+
+
+// Enhanced mouse click handler that works with your existing object structure
+function enhancedMouseClick(event) {
+    // Get mouse position in normalized device coordinates
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // Update the raycaster
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+    // Collect all clickable objects
+    const allClickableObjects = [];
+    Object.values(sectionObjects).forEach(section => {
+        if (section.clickableObjects) {
+            allClickableObjects.push(...section.clickableObjects);
+        }
+    });
+
+    console.log("Checking for clicks. Clickable objects:", allClickableObjects.length);
+
+    // Make raycaster more sensitive
+    raycaster.params.Points.threshold = 0.2;
+    raycaster.params.Line.threshold = 0.2;
+
+    // Check for intersections
+    const intersects = raycaster.intersectObjects(allClickableObjects, true);
+
+    if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        console.log("Clicked object userData:", clickedObject.userData);
+
+        // First, handle your URL functionality if it exists
+        if (clickedObject.userData.url && clickedObject.userData.url !== '') {
+            window.open(clickedObject.userData.url, '_blank');
+        }
+
+        // Then, check if it's a grocery item
+        if (clickedObject.userData.name && groceryItems[clickedObject.userData.name]) {
+            console.log("Collected item:", clickedObject.userData.name);
+
+            // Update the grocery list
+            updateGroceryList(clickedObject.userData.name);
+
+            // Optionally, hide the clicked object
+            // clickedObject.visible = false; // Uncomment if you want items to disappear
+        }
+    } else {
+        console.log("No intersections found");
+    }
+}
+
+// Function to initialize the grocery system using your existing object creation function
+function initializeEnhancedGrocerySystem() {
+    // Initialize the grocery list UI
+    initializeGroceryList();
+
+    // Replace the existing click handler with our enhanced version
+
+    window.addEventListener('click', enhancedMouseClick);
+
+    // Improve raycaster sensitivity
+    if (raycaster) {
+        raycaster.params.Points.threshold = 0.2;
+        raycaster.params.Line.threshold = 0.2;
+    }
+
+    console.log("Enhanced grocery system initialized");
+}
 function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 3, name = '', isClickable = false, url = '', heightPosition = 0) {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(imagePath, (texture) => {
@@ -1142,7 +1467,7 @@ function createSection1() {
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', 0);
     //  createSection1ImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront', -10);
-
+    //createAnimatedText();
 
     createSection1ClickableObject(
 
@@ -1150,8 +1475,8 @@ function createSection1() {
         { x: -3.5, y: -1.2, z: 1.61 },
         { width: 1.5, height: 1.5 },
         2,
-        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        3
+        '',
+        'greenonion'
     );
 
     createSection1ClickableObject(
@@ -1160,8 +1485,29 @@ function createSection1() {
         { x: 2.2, y: 0.2, z: 0 },
         { width: 2, height: 2 },
         0.01,
-        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        0.01
+        '',
+        'soysauce'
+    );
+
+
+    createSection1ClickableObject(
+
+        'assets/images/ginger.png',
+        { x: -4.3, y: 1.1, z: -0.2 },
+        { width: 1, height: 1 },
+        0.01,
+        '',
+        'ginger'
+    );
+
+    createSection1ClickableObject(
+
+        'assets/images/garlic.png',
+        { x: -6.75, y: 1.7, z: -0.2 },
+        { width: 0.6, height: 0.6 },
+        0.01,
+        '',
+        'garlic'
     );
 
     // createSection1ClickableObject(
@@ -1210,11 +1556,9 @@ function createSection1() {
         0
     );
 
-
-
     createSection1NonClickableObject(
         'assets/images/orang2.png',
-        { x: -10, y: 0, z: -1 },
+        { x: -9.8, y: 0, z: -0.5 },
         { width: 7, height: 5 },
         0.7,
         0
@@ -1230,6 +1574,9 @@ function createSection1() {
         0.7,
         0
     );
+
+    initializeEnhancedGrocerySystem();
+
 }
 
 // ============================================================
@@ -1318,7 +1665,7 @@ function createSection2() {
     // createSection2ImageLayer(-4, 'assets/images/section2-midground.png', 0.6, 'section2-midground');
     // createSection2ImageLayer(-2, 'assets/images/section2-foreground.png', 1.0, 'section2-foreground');
 
-    loadInteractiveModel(); //fix panning issue
+    // loadInteractiveModel(); //fix panning issue
 
     // Add animated bowl
     createAnimatedBowl({ x: 0, y: 5, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
@@ -2379,40 +2726,7 @@ function handleClickOutside(e) {
         zoomOut();
     }
 }
-// // Update the mouse click handler to handle zoomable objects
-// function onMouseClick(event) {
-//     // Update the picking ray with the camera and mouse position
-//     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-//     const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
 
-//     raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
-
-//     // Get all clickable objects from all sections
-//     const allClickableObjects = [];
-//     Object.values(sectionObjects).forEach(section => {
-//         if (section.clickableObjects) {
-//             allClickableObjects.push(...section.clickableObjects);
-//         }
-//     });
-
-//     // Calculate objects intersecting the picking ray
-//     const intersects = raycaster.intersectObjects(allClickableObjects);
-
-//     // Handle clicked object
-//     if (intersects.length > 0) {
-//         const clickedObject = intersects[0].object;
-
-//         if (clickedObject.userData.isZoomable && currentSection >= 1.5) {
-//             // Handle zoom action
-//             handleZoomableObjectClick(clickedObject);
-//         } else if (clickedObject.userData.url) {
-//             // Handle URL action
-//             window.open(clickedObject.userData.url, '_blank');
-//         }
-
-//         console.log(`Clicked on ${clickedObject.userData.name}`);
-//     }
-// }
 
 // Modify the onMouseClick function to handle local image display
 function onMouseClick(event) {
@@ -2745,7 +3059,7 @@ function animate(timestamp) {
                     Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
 
                 // Update the target Y position to match our new higher position
-                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2;
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 3; //TODO fuckass
                 normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
             }
         }
@@ -2879,6 +3193,8 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
+window.addEventListener('click', onMouseClick);
+
 // Handle window resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -3002,11 +3318,13 @@ function createScene() {
     setupKeyboardControls();
     // Create each section
     createSection1();
+    createAnimatedText();
+    createStaticText();
+    createStaticText2();
+    //   initializeAnimatedText();
     createSection2();
     createSection3();
 
-    const axesHelper = new THREE.AxesHelper(5);
-    scene.add(axesHelper);
 
 
     console.log("All sections created:",

@@ -13,11 +13,15 @@ body {
     overflow-x: hidden;
     background-color: #000;
     color: #fff;
+    perspective: 1000px;
+    /* Important for 3D effect */
 }
 
 #container {
     position: relative;
     width: 100%;
+    transform-style: preserve-3d;
+    /* Important for 3D effect */
 }
 
 #content {
@@ -87,4 +91,130 @@ h1 {
 
 .dot.active {
     background-color: white;
+}
+
+/* Grocery List Styles */
+#grocery-list {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    color: #000;
+}
+
+#grocery-list h3 {
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+#grocery-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#grocery-list li {
+    padding: 5px 0;
+    cursor: pointer;
+}
+
+#grocery-list li.checked {
+    text-decoration: line-through;
+    color: #888;
+}
+
+/* Congratulatory Message Styles */
+#congrats-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 5;
+    display: none;
+}
+
+/* CSS3D Text Styles */
+@keyframes blink {
+
+    0%,
+    100% {
+        border-color: transparent;
+    }
+
+    50% {
+        border-color: white;
+    }
+}
+
+#main-title {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate3d(-50%, -50%, -2px);
+    /* True 3D positioning */
+    color: white;
+    /* Text color is white */
+    font-family: Arial, sans-serif;
+    font-size: 5rem;
+    font-weight: bold;
+    text-align: center;
+    z-index: 10;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    /* Subtle glow effect */
+    pointer-events: none;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    will-change: transform, opacity;
+    /* Performance optimization */
+}
+
+#animated-subtitle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate3d(-50%, -50%, -5px);
+    /* True 3D positioning */
+    color: white;
+    /* Text color is white */
+    font-family: Arial, sans-serif;
+    font-size: 1.5rem;
+    text-align: center;
+    z-index: 10;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    /* Subtle glow effect */
+    pointer-events: none;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    will-change: transform, opacity;
+    /* Performance optimization */
+}
+
+#animated-subtitle::after {
+    content: '|';
+    margin-left: 2px;
+    animation: blink 1s infinite;
+}
+
+/* Optional: Add a slight glow effect to make text stand out against dark backgrounds */
+#main-title,
+#animated-subtitle {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #main-title {
+        font-size: 3rem;
+    }
+
+    #animated-subtitle {
+        font-size: 1rem;
+    }
 }

@@ -261,11 +261,12 @@ function showPermissionDialog() {
     dialog.innerHTML = `
         <div class="permission-content">
             <h2>Enable Hand Gestures?</h2>
-            <p>This website can respond to your hand gestures for a more interactive experience.</p>
-            <p>We'll need access to your webcam to track hand movements.</p>
+            <p>This website can respond to certain hand gestures for a more interactive experience.</p>
+            <p> For example, try a thumbs up! Or a thumbs down!</p>
+            <p>We'll need access to your webcam to track your hand gestures.</p>
             <div class="permission-buttons">
-                <button id="enable-gestures">Enable Gestures</button>
-                <button id="skip-gestures">No Thanks</button>
+                <button id="enable-gestures">Enable Gestures!</button>
+                <button id="skip-gestures">No Thanks!</button>
             </div>
         </div>
     `;
