@@ -1492,7 +1492,7 @@ function createSection1() {
 
     createSection1ClickableObject(
 
-        'assets/images/ginger.png',
+        './assets/images/ginger.png',
         { x: -4.3, y: 1.1, z: -0.2 },
         { width: 1, height: 1 },
         0.01,
