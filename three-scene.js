@@ -14,26 +14,13 @@ document.getElementById('container').appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional: for softer shadows
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xfff2cc, 0.5);
+const ambientLight = new THREE.AmbientLight(0xfff2cc, 1);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffe699, 0.8);
 
 directionalLight.position.set(0, 1, 1);
 directionalLight.castShadow = true;
-
-directionalLight.shadow.mapSize.width = 1024;
-directionalLight.shadow.mapSize.height = 1024;
-directionalLight.shadow.camera.near = 0.5;
-directionalLight.shadow.camera.far = 50;
-directionalLight.shadow.camera.left = -10;
-directionalLight.shadow.camera.right = 10;
-directionalLight.shadow.camera.top = 10;
-directionalLight.shadow.camera.bottom = -10;
-scene.add(directionalLight);
-
-
-
 
 
 
@@ -59,6 +46,11 @@ const sectionObjects = {
         parallaxLayers: [],
         clickableObjects: []
     }
+};
+
+const textAnimationState = {
+    sectionOneActive: false,
+    sectionTwoActive: false
 };
 
 
@@ -249,6 +241,7 @@ function createStaticText2() {
         scene.add(textMesh);
     });
 }
+// Updated section one text animation function
 function createAnimatedText() {
     const fontLoader = new THREE.FontLoader();
     const textDepth = -6;
@@ -278,10 +271,26 @@ function createAnimatedText() {
         let lastUpdateTime = 0;
         const typingSpeed = 30; // milliseconds per character
 
-        // Add debug logging
-        console.log("Starting text animation with words:", words);
+        console.log("Starting section one text animation with words:", words);
 
         function animateText(currentTime) {
+            // First check if we should be active based on section
+            if (currentSection > 0.7) {
+                if (textAnimationState.sectionOneActive) {
+                    console.log("SECTION ONE: Deactivating text animation");
+                    textAnimationState.sectionOneActive = false;
+                }
+                textMesh.visible = false;
+                requestAnimationFrame(animateText);
+                return;
+            } else {
+                if (!textAnimationState.sectionOneActive) {
+                    console.log("SECTION ONE: Activating text animation");
+                    textAnimationState.sectionOneActive = true;
+                }
+                textMesh.visible = true;
+            }
+
             // Only update the text at specified intervals
             if (currentTime - lastUpdateTime > typingSpeed) {
                 lastUpdateTime = currentTime;
@@ -307,7 +316,7 @@ function createAnimatedText() {
                     } else {
                         // Move to the next word when backspacing is complete
                         wordIndex = (wordIndex + 1) % words.length;
-                        console.log("Switching to next word, index:", wordIndex, "word:", words[wordIndex]);
+                        console.log("SECTION ONE: Switching to next word, index:", wordIndex, "word:", words[wordIndex]);
 
                         // Switch back to typing after a short delay
                         isTyping = true;
@@ -1593,6 +1602,135 @@ function createSection1() {
 // ============================================================
 // SECTION 2: NEW SECTION IMPLEMENTATION
 // ============================================================
+// Updated section two text animation function
+// function createSectionTwoText() {
+//     const fontLoader = new THREE.FontLoader();
+
+//     fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+//         // Create initial text with content for immediate visibility
+//         const textGeometry = new THREE.TextGeometry('SECTION TWO TEXT', {
+//             font: font,
+//             size: 0.5,              // Good size for visibility
+//             height: 0.1,
+//             curveSegments: 12,
+//             bevelEnabled: false
+//         });
+
+//         // Use a bright, visible material
+//         const textMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Cyan for visibility
+//         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+
+//         // Position the text in front of the camera
+//         // With camera at z=5, this puts the text at z=0, which is within view
+//         textMesh.position.set(0, 0, 0);
+
+//         // Center the text geometry
+//         textGeometry.computeBoundingBox();
+//         const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+//         const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+//         textMesh.position.x = -textWidth / 2;
+//         textMesh.position.y = -textHeight / 2;
+
+//         // Add to scene
+//         scene.add(textMesh);
+
+//         console.log("Section two text added at position:",
+//             textMesh.position.x, textMesh.position.y, textMesh.position.z);
+
+//         // Array of words for section two
+//         const words = [
+//             "Welcome to section two!",
+//             "Here you can learn about\nmy projects and skills.",
+//             "Explore interactive models\nand designs.",
+//             "Discover my creative process."
+//         ];
+
+//         let wordIndex = 0;
+//         let currentText = 'SECTION TWO TEXT'; // Start with visible text
+//         let isTyping = true;
+//         let charIndex = 0;
+//         let lastUpdateTime = 0;
+//         const typingSpeed = 30;
+
+//         function animateText(currentTime) {
+//             // Check if we should be visible based on section
+//             const shouldBeVisible = currentSection >= 0.7 && currentSection <= 1.5;
+
+//             if (!shouldBeVisible) {
+//                 if (textMesh.visible) {
+//                     console.log("Section two text hidden, section =", currentSection);
+//                     textMesh.visible = false;
+//                 }
+//                 requestAnimationFrame(animateText);
+//                 return;
+//             }
+
+//             // Make visible if it wasn't already
+//             if (!textMesh.visible) {
+//                 console.log("Section two text shown, section =", currentSection);
+//                 textMesh.visible = true;
+//                 // Reset animation when becoming visible again
+//                 wordIndex = 0;
+//                 charIndex = 0;
+//                 currentText = '';
+//                 isTyping = true;
+//             }
+
+//             // Animate the text
+//             if (currentTime - lastUpdateTime > typingSpeed) {
+//                 lastUpdateTime = currentTime;
+
+//                 if (isTyping) {
+//                     const currentWord = words[wordIndex];
+
+//                     if (charIndex < currentWord.length) {
+//                         currentText = currentWord.substring(0, charIndex + 1);
+//                         charIndex++;
+//                     } else {
+//                         isTyping = false;
+//                         setTimeout(() => {
+//                             lastUpdateTime = performance.now();
+//                         }, 1500);
+//                     }
+//                 } else {
+//                     if (currentText.length > 0) {
+//                         currentText = currentText.slice(0, -1);
+//                     } else {
+//                         wordIndex = (wordIndex + 1) % words.length;
+//                         console.log("Section 2 text switching to:", words[wordIndex]);
+//                         isTyping = true;
+//                         charIndex = 0;
+//                         setTimeout(() => {
+//                             lastUpdateTime = performance.now();
+//                         }, 500);
+//                     }
+//                 }
+
+//                 // Update the text geometry
+//                 textMesh.geometry.dispose();
+//                 textMesh.geometry = new THREE.TextGeometry(currentText, {
+//                     font: font,
+//                     size: 0.5,
+//                     height: 0.1,
+//                     curveSegments: 12,
+//                     bevelEnabled: false
+//                 });
+
+//                 // Center the updated text
+//                 textMesh.geometry.computeBoundingBox();
+//                 const updatedTextWidth = textMesh.geometry.boundingBox.max.x - textMesh.geometry.boundingBox.min.x;
+//                 const updatedTextHeight = textMesh.geometry.boundingBox.max.y - textMesh.geometry.boundingBox.min.y;
+//                 textMesh.position.x = -updatedTextWidth / 2;
+//                 textMesh.position.y = -updatedTextHeight / 2;
+//             }
+
+//             requestAnimationFrame(animateText);
+//         }
+
+//         // Start the animation
+//         requestAnimationFrame(animateText);
+//     });
+// }
 function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(imagePath, (texture) => {
@@ -1673,8 +1811,7 @@ function createSection2ClickableObject(imagePath, position, size, url, name = ''
 function createSection2() {
     // Create all section 2 layers
     createSection2ImageLayer(-7, 'assets/images/table.png', 0.2, 'section2-background');
-    // createSection2ImageLayer(-4, 'assets/images/section2-midground.png', 0.6, 'section2-midground');
-    // createSection2ImageLayer(-2, 'assets/images/section2-foreground.png', 1.0, 'section2-foreground');
+
 
     // loadInteractiveModel(); //fix panning issue
 
@@ -1692,6 +1829,8 @@ function createSection2() {
     loadTeaAnimation();
     loadSoySauceAnimation();
     loadSpringRollsAnimation();
+
+
 
 
 
@@ -3330,6 +3469,7 @@ function createScene() {
     // Create each section
     createSection1();
     createAnimatedText();
+    //createSectionTwoText();
     createStaticText();
     createStaticText2();
     //   initializeAnimatedText();
