@@ -94,7 +94,7 @@ const frameAnimation = {
     normalFrameIndex: 0,
     thumbsUpFrameIndex: 0,
     thumbsDownFrameIndex: 0,
-    fps: 12,
+    fps: 9,
     lastFrameTime: 0,
     framesLoaded: false,
     transitionDelay: 500,
@@ -112,18 +112,17 @@ let scrollingEnabled = false;
 let zoomLevel = 1;
 const zoomSpeed = 0.1;
 const minZoom = 0.5;
-const maxZoom = 3;
+const maxZoom = 1.1;
 const panSpeed = 0.05;
 let isPanning = false;
 let keysPressed = {};
 
-// Add to your variables at the top
 const panKeys = {
-    left: 'a',    // A key to pan left
-    right: 'd',   // D key to pan right
-    up: 'w',      // W key to pan up
-    down: 's'     // S key to pan down
+    left: 'arrowleft',
+    right: 'arrowright'
+
 };
+
 // Animation state for the bowl
 const bowlAnimation = {
     frames: [],
@@ -176,10 +175,24 @@ let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
 let modelRotation = { x: 0, y: 0 };
 let modelLoaded = false;
+
+
 // ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
+let assetsLoaded = 0;
+const totalAssets = 10; // Adjust this number
 
+function assetLoaded() {
+    assetsLoaded++;
+    if (assetsLoaded >= totalAssets) {
+        const loadingScreen = document.getElementById('loading-screen');
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 1000);
+    }
+}
 
 function createStaticText() {
     const fontLoader = new THREE.FontLoader();
@@ -189,7 +202,7 @@ function createStaticText() {
         // Create text geometry with larger size
         const textGeometry = new THREE.TextGeometry('GRACE JIN', {
             font: font,
-            size: 2,
+            size: 1.5,
             height: 0.1,
             curveSegments: 12,
             bevelEnabled: false
@@ -202,7 +215,7 @@ function createStaticText() {
         textGeometry.center();
 
         // Position above the animated text
-        textMesh.position.set(-1.5, 6.5, textDepth); // Higher y-position than animated text
+        textMesh.position.set(-1, 6.7, textDepth); // Higher y-position than animated text
         textMesh.rotation.x = -0.2; // Same tilt as animated text
 
         scene.add(textMesh);
@@ -230,7 +243,7 @@ function createStaticText2() {
         textGeometry.center();
 
         // Position above the animated text
-        textMesh.position.set(-1.5, 5, textDepth); // Higher y-position than animated text
+        textMesh.position.set(-1.5, 5.2, textDepth); // Higher y-position than animated text
         textMesh.rotation.x = -0.2; // Same tilt as animated text
 
         scene.add(textMesh);
@@ -243,7 +256,7 @@ function createAnimatedText() {
     fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
         const textGeometry = new THREE.TextGeometry('', {
             font: font,
-            size: 0.5,
+            size: 0.3,
             height: 0.1,
             curveSegments: 12,
             bevelEnabled: false
@@ -251,18 +264,19 @@ function createAnimatedText() {
         const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
 
-        textMesh.position.set(-1.5, 4, textDepth);
+        textMesh.position.set(-1.5, 3, textDepth);
         textMesh.rotation.x = -0.2;
         scene.add(textMesh);
 
         // Array of words to cycle through
-        const words = ["Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor."];
+        const words = ["Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
+            "Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor.", "Try looking around!"];
         let wordIndex = 0;
         let currentText = '';
         let isTyping = true;
         let charIndex = 0;
         let lastUpdateTime = 0;
-        const typingSpeed = 50; // milliseconds per character
+        const typingSpeed = 30; // milliseconds per character
 
         // Add debug logging
         console.log("Starting text animation with words:", words);
@@ -309,7 +323,7 @@ function createAnimatedText() {
                 textMesh.geometry.dispose();
                 textMesh.geometry = new THREE.TextGeometry(currentText, {
                     font: font,
-                    size: 0.5,
+                    size: 0.3,
                     height: 0.1,
                     curveSegments: 12,
                     bevelEnabled: false
@@ -579,11 +593,11 @@ function updateClipPlane(plane, scrollPosition) {
     plane.userData.clipPlane.constant = clipOffset - revealAmount;
 }
 
-// Update the keyboard controls
+// Update your event listeners in setupKeyboardControls function:
 function setupKeyboardControls() {
     // Listen for key down events
     document.addEventListener('keydown', function (event) {
-        // Store key state
+        // Store key state (convert to lowercase for consistency)
         keysPressed[event.key.toLowerCase()] = true;
 
         // Handle zoom controls for all sections
@@ -593,7 +607,7 @@ function setupKeyboardControls() {
         else if (event.key === '-' || event.key === '_') {
             zoomOut();
         }
-        // Check if it's a pan key (WASD)
+        // Check if it's a pan key (left/right arrows only)
         else if (Object.values(panKeys).includes(event.key.toLowerCase())) {
             isPanning = true;
         }
@@ -821,8 +835,8 @@ function processSectionPanning(layers) {
         let newX = layer.position.x;
         let newY = layer.position.y;
 
-        // Pan left/right with limits
-        if (keysPressed['a']) {
+        // Pan left/right with limits (using arrow keys now)
+        if (keysPressed['arrowleft']) {
             // Calculate the distance from original position
             const currentOffsetX = layer.position.x - layer.userData.originalPanX;
 
@@ -830,32 +844,13 @@ function processSectionPanning(layers) {
             if (currentOffsetX < panLimits.maxX) {
                 newX = layer.position.x + panAmount;
             }
-        } else if (keysPressed['d']) {
+        } else if (keysPressed['arrowright']) {
             // Calculate the distance from original position
             const currentOffsetX = layer.userData.originalPanX - layer.position.x;
 
             // Only allow panning if within limits
             if (currentOffsetX < panLimits.maxX) {
                 newX = layer.position.x - panAmount;
-            }
-        }
-
-        // Pan up/down with limits
-        if (keysPressed['w']) {
-            // Calculate the distance from original position
-            const currentOffsetY = layer.userData.originalPanY - layer.position.y;
-
-            // Only allow panning if within limits
-            if (currentOffsetY < panLimits.maxY) {
-                newY = layer.position.y - panAmount;
-            }
-        } else if (keysPressed['s']) {
-            // Calculate the distance from original position
-            const currentOffsetY = layer.position.y - layer.userData.originalPanY;
-
-            // Only allow panning if within limits
-            if (currentOffsetY < panLimits.maxY) {
-                newY = layer.position.y + panAmount;
             }
         }
 
@@ -872,9 +867,9 @@ function addControlPanel() {
     panel.innerHTML = `
         <div class="controls-panel">
             <h3>Controls</h3>
-            <p><strong>Rotate Model:</strong> Click and drag</p>
+            <p><strong>Scroll!:</strong> scroll down to see more!</p>
             <p><strong>Zoom:</strong> + / - keys</p>
-            <p><strong>Pan:</strong> W/A/S/D keys</p>
+            <p><strong>Pan:</strong> left and right keys</p>
             <button id="reset-view">Reset View</button>
         </div>
     `;
@@ -1185,7 +1180,7 @@ function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 3
         });
 
         const plane = new THREE.Mesh(geometry, material);
-        plane.position.z = zPosition - 0.5;
+        plane.position.z = zPosition - 0.7;
 
         // Set initial position for intro animation
         plane.position.y = initialOffset;
@@ -1312,13 +1307,13 @@ function createAnimationPlanes() {
     // Calculate appropriate size
     const fullSize = calculateFullscreenSize(zPosition);
     const size = {
-        width: fullSize.width * 0.25,
-        height: fullSize.height * 0.6
+        width: fullSize.width * 0.2,
+        height: fullSize.height * 0.7
     };
 
     // Create position vector with higher Y value
     const position = new THREE.Vector3(
-        size.width * 0.3,
+        size.width * 0.4,
         size.height * 0.2,
         zPosition
     );
@@ -1379,7 +1374,7 @@ function createAnimationPlanes() {
         const newFullSize = calculateFullscreenSize(zPosition);
         const newSize = {
             width: newFullSize.width * 0.25,
-            height: newFullSize.height * 0.6
+            height: newFullSize.height * 0.85
         };
 
         const newPosition = new THREE.Vector3(
@@ -1401,7 +1396,7 @@ function createAnimationPlanes() {
 
 function preloadAnimationFrames() {
     const textureLoader = new THREE.TextureLoader();
-    const totalNormalFrames = 8;
+    const totalNormalFrames = 5;
     const totalThumbsUpFrames = 8;
     const totalThumbsDownFrames = 8;
 
@@ -1464,10 +1459,7 @@ function createSection1() {
     createSection1ImageLayer(-6, '/assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
     createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf', 0);
     createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2', 0);
-    //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
-    //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', 0);
-    //  createSection1ImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront', -10);
-    //createAnimatedText();
+
 
     createSection1ClickableObject(
 
@@ -1510,15 +1502,34 @@ function createSection1() {
         'garlic'
     );
 
-    // createSection1ClickableObject(
+    createSection1ClickableObject(
 
-    //     'assets/images/wontonwrapper.png',
-    //     { x: 3.2, y: -0.2, z: 2 },
-    //     { width: 0.5, height: 0.5 },
-    //     0,
-    //     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    //     0
-    // ); //problem with wonton wrapper panning
+        'assets/images/linkedin.png',
+        { x: 2.8, y: 3, z: -0.5 },
+        { width: 2, height: 3 },
+        0.01,
+        'https://www.linkedin.com/in/grace-jin-9654a826b/',
+        ''
+    );
+
+    createSection1ClickableObject(
+
+        'assets/images/github.png',
+        { x: -3.5, y: 2.6, z: 0 },
+        { width: 1.5, height: 2.5 },
+        0.01,
+        'https://github.com/gracejinsotrue',
+        ''
+    );
+
+    createSection1NonClickableObject(
+
+        'assets/images/aboutme.png',
+        { x: -5.2, y: 2.6, z: 0 },
+        { width: 2.4, height: 3.4 },
+        0.01,
+        0.7, 0
+    );
 
 
 
@@ -2832,7 +2843,7 @@ function updateAnimationFrame(timestamp) {
     }
 }
 
-// Update the processModelPanning function for WASD
+// Update the processModelPanning function for WASD //no logner using wasd
 function processModelPanning() {
     if (!modelContainer) return;
 
@@ -2847,13 +2858,13 @@ function processModelPanning() {
         newX = Math.max(panLimits.minX, modelContainer.position.x - panAmount);
     }
 
-    // Pan up/down with WASD
-    const baseY = -window.innerHeight / 45 + 1;
-    if (keysPressed[panKeys.up]) {
-        newY = Math.max(baseY + panLimits.minY, modelContainer.position.y - panAmount);
-    } else if (keysPressed[panKeys.down]) {
-        newY = Math.min(baseY + panLimits.maxY, modelContainer.position.y + panAmount);
-    }
+    // // Pan up/down with WASD
+    // const baseY = -window.innerHeight / 45 + 1;
+    // if (keysPressed[panKeys.up]) {
+    //     newY = Math.max(baseY + panLimits.minY, modelContainer.position.y - panAmount);
+    // } else if (keysPressed[panKeys.down]) {
+    //     newY = Math.min(baseY + panLimits.maxY, modelContainer.position.y + panAmount);
+    // }
 
     // Apply new position
     modelContainer.position.x = newX;
@@ -3059,7 +3070,7 @@ function animate(timestamp) {
                     Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
 
                 // Update the target Y position to match our new higher position
-                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 3; //TODO fuckass
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2.8; //TODO fuckass
                 normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
             }
         }

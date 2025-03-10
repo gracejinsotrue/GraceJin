@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Parallax Website</title>
+    <title>Grace Jin's Site!</title>
     <style>
         /* Reset and base styles */
         * {
@@ -22,6 +22,73 @@
             color: #fff;
             height: 100vh;
             scroll-behavior: smooth;
+        }
+
+        /* Loading Screen Styles */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-content {
+            text-align: center;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #4285f4;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .loading-bar-container {
+            width: 100%;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .loading-bar {
+            height: 100%;
+            width: 0;
+            background-color: #4285f4;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .loading-percentage {
+            font-size: 16px;
+            margin-top: 5px;
         }
 
         /* Container for Three.js scene */
@@ -176,19 +243,25 @@
 </head>
 
 <body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Grace Jin's Portfolio...</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar"></div>
+            </div>
+            <div class="loading-percentage">0%</div>
+        </div>
+    </div>
+
     <!-- Three.js rendering container -->
     <div id="container"></div>
 
     <!-- Content sections -->
     <div id="content">
         <!-- Section 1: Main parallax with grocery/products -->
-        <div class="section" id="section1">
-            <div class="section-content">
-                <h1>Welcome to My Portfolio</h1>
-                <p>Scroll down to explore or use hand gestures!</p>
-                <button id="enable-hand-tracking" class="cta-button">Try Hand Gestures</button>
-            </div>
-        </div>
+
 
         <!-- Section 2: 3D Model interaction -->
         <div class="section" id="section2">
@@ -222,8 +295,6 @@
             <li data-item="ginger">Ginger</li>
             <li data-item="soysauce">Soy Sauce</li>
             <li data-item="garlic">Garlic</li>
-
-
         </ul>
     </div>
 
@@ -249,27 +320,79 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/FontLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/geometries/TextGeometry.js"></script>
 
+    <!-- Loading Screen Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const loadingBar = document.querySelector('.loading-bar');
+            const loadingPercentage = document.querySelector('.loading-percentage');
+            const loadingText = document.querySelector('.loading-text');
+
+            // Configure loading duration (milliseconds) 
+            const totalLoadingTime = 0; // TODO: CHANG
+            const updateInterval = 50; // Update every 50ms
+
+            // Calculate updates needed
+            const totalUpdates = totalLoadingTime / updateInterval;
+            let currentUpdate = 0;
+
+            // Loading messages to cycle through
+            const loadingMessages = [
+                "Loading Grace Jin's Portfolio...",
+                "Preparing 3D environment...",
+                "Loading interactive elements...",
+                "Setting up hand tracking...",
+                "Almost ready..."
+            ];
+
+            // Update function
+            const updateLoading = () => {
+                currentUpdate++;
+
+                // Calculate progress
+                const progress = Math.min((currentUpdate / totalUpdates) * 100, 100);
+
+                // Update loading bar and text
+                loadingBar.style.width = `${progress}%`;
+                loadingPercentage.textContent = `${Math.round(progress)}%`;
+
+                // Change loading message every ~20% progress
+                if (currentUpdate % Math.floor(totalUpdates / 5) === 0) {
+                    const messageIndex = Math.floor((progress / 20));
+                    if (loadingMessages[messageIndex]) {
+                        loadingText.textContent = loadingMessages[messageIndex];
+                    }
+                }
+
+                // Check if loading is complete
+                if (currentUpdate >= totalUpdates) {
+                    // Hide loading screen with a fade effect
+                    gsap.to(loadingScreen, {
+                        opacity: 0,
+                        duration: 0.5,
+                        onComplete: () => {
+                            loadingScreen.style.display = 'none';
+
+                            // Initialize your main scripts here if needed
+                            // This ensures they run after the loading screen is gone
+                            if (window.initThreeScene) {
+                                window.initThreeScene();
+                            }
+                        }
+                    });
+
+                    clearInterval(loadingInterval);
+                }
+            };
+
+            // Start the loading simulation
+            const loadingInterval = setInterval(updateLoading, updateInterval);
+        });
+    </script>
+
     <!-- Your custom scripts -->
     <script src="three-scene.js"></script>
     <script src="hand-gestures.js"></script>
-
-    <!-- Script to handle the hand tracking button -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const enableButton = document.getElementById('enable-hand-tracking');
-            if (enableButton) {
-                enableButton.addEventListener('click', function () {
-                    // Don't show the automatic prompt
-                    window.skipAutomaticPrompt = true;
-
-                    // Show permission dialog immediately
-                    if (window.requestHandGestures) {
-                        window.requestHandGestures();
-                    }
-                });
-            }
-        });
-    </script>
 </body>
 
 </html>
