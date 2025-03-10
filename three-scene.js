@@ -1461,7 +1461,7 @@ function preloadAnimationFrames() {
 
 function createSection1() {
     // Create all section 1 layers
-    createSection1ImageLayer(-6, 'assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
+    createSection1ImageLayer(-6, '.assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
     createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf', 0);
     createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2', 0);
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
