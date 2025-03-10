@@ -1461,8 +1461,8 @@ function preloadAnimationFrames() {
 
 function createSection1() {
     // Create all section 1 layers
-    createSection1ImageLayer(-6, './assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
-    createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf', 0);
+    createSection1ImageLayer(-6, './assets/images/groceryfloor.', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
+    createSection1ImageLayer(-5, 'https://media.discordapp.net/attachments/1009968505958965291/1348204839582175323/IMG_0535.png?ex=67cf45da&is=67cdf45a&hm=1b7723afde32724e2198a2ed0185c4a59887af2e57d7a1aeabbd7dfe9a5e0722&=&format=webp&quality=lossless&width=498&height=1080', 0.4, 6, 'groceryshelf', 0);
     createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2', 0);
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', 0);
