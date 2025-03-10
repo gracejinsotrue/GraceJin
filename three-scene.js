@@ -17,11 +17,56 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional: for softer shadow
 const ambientLight = new THREE.AmbientLight(0xfff2cc, 1);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffe699, 0.8);
+const directionalLight = new THREE.DirectionalLight(0xffc0cb, 1);
 
 directionalLight.position.set(0, 1, 1);
 directionalLight.castShadow = true;
 
+
+
+// Position the light to better illuminate your model
+directionalLight.position.set(-5, 5, 5);
+
+// Set up shadow properties
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 50;
+directionalLight.shadow.camera.left = -10;
+directionalLight.shadow.camera.right = 10;
+directionalLight.shadow.camera.top = 10;
+directionalLight.shadow.camera.bottom = -10;
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+
+
+scene.add(directionalLight);
+
+
+
+function ensureCastShadows(model) {
+    model.traverse(function (node) {
+        if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+
+            // Fix for some materials that may not support shadows properly
+            if (node.material) {
+                // If it's an array of materials
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(material => {
+                        material.shadowSide = THREE.BackSide; // Try BackSide if FrontSide doesn't work
+                        // Force material update
+                        material.needsUpdate = true;
+                    });
+                } else {
+                    // Single material
+                    node.material.shadowSide = THREE.BackSide; // Try BackSide if FrontSide doesn't work
+                    // Force material update
+                    node.material.needsUpdate = true;
+                }
+            }
+        }
+    });
+}
 
 
 // Set up raycaster for mouse interaction
@@ -52,14 +97,6 @@ const textAnimationState = {
     sectionOneActive: false,
     sectionTwoActive: false
 };
-
-
-// const panLimits = {
-//     minX: -3,  // Maximum left pan
-//     maxX: 3,   // Maximum right pan
-//     minY: 0,  // Maximum up pan
-//     maxY: 0    // Maximum down pan
-// };
 
 
 // Animation planes are global
@@ -161,12 +198,57 @@ const springRollsAnimation = {
 };
 
 
+const projectDescriptions = {
+    bowl: {
+        title: "This website!",
+        description: "I designed and programmed this to encapsulate who I am. This website, from the hand-drawn assets to the style of writing, is something that only I'd make. This was really fun to work with though! I am still adding new easter eggs and side quests if you check back at a later time! ",
+        technologies: ["Javascript, Three.js, CSS, HTML"],
+        image: "assets/images/bowl1.png",
+        link: ""
+    }
+
+    // springrolls: {
+
+    // }
+};
+
 // Initialize variables for model interaction (part 2 for now)
 let modelContainer = null;
 let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
 let modelRotation = { x: 0, y: 0 };
 let modelLoaded = false;
+
+// const enhancedProjectDescriptions = {
+//     bowl: {
+//         title: "Interactive Data Visualization Dashboard",
+//         shortDescription: "An interactive dashboard that visualizes complex datasets using D3.js and React.",
+//         fullDescription: `This project addresses the challenge of making complex data accessible and understandable through intuitive visualizations. 
+
+//         I designed and implemented a responsive dashboard that transforms raw datasets into interactive visual representations. The dashboard features real-time filtering, customizable views, and animated transitions between data states.
+
+//         Key features include:
+//         • Interactive charts and graphs with tooltips and drill-down capabilities
+//         • Custom animation system for smooth transitions between data views
+//         • Responsive design that works across desktop and mobile devices
+//         • Data export functionality in multiple formats`,
+//         technologies: ["React", "D3.js", "JavaScript", "CSS", "REST API", "Figma"],
+//         mainImage: "assets/images/projects/data_viz_project.jpg",
+//         galleryImages: [
+//             "assets/images/projects/data_viz_1.jpg",
+//             "assets/images/projects/data_viz_2.jpg",
+//             "assets/images/projects/data_viz_3.jpg"
+//         ],
+//         stats: {
+//             duration: "3 months",
+//             role: "Lead Developer",
+//             team: "3 people",
+//             status: "Deployed"
+//         },
+//         link: "https://github.com/yourusername/data-viz-project",
+//         demoLink: "https://your-demo-url.com"
+//     }
+// };
 
 
 // ============================================================
@@ -262,7 +344,7 @@ function createAnimatedText() {
         scene.add(textMesh);
 
         // Array of words to cycle through
-        const words = ["Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
+        const words = ["Hi google people! This site \nwill be completely updated \nwithin 24-48 hours from now! \nHad a personal issue, \nPLEASE come back to check!!!", "Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
             "Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor.", "Try looking around!"];
         let wordIndex = 0;
         let currentText = '';
@@ -373,8 +455,8 @@ function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
     modelContainer.scale.set(1, 1, 1);
-    modelContainer.position.set(-6, -window.innerHeight / 45 + 10, -1);
-    modelContainer.rotation.x = (Math.PI / 2);
+    modelContainer.position.set(-3, -window.innerHeight / 45 + 12, 1.5);
+    modelContainer.rotation.x = Math.PI / 2;
     modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
 
@@ -401,15 +483,19 @@ function loadInteractiveModel() {
     const mouse = new THREE.Vector2();
     const intersection = new THREE.Vector3();
 
+    // Rotation variables
+    let isRotating = true;  // Set to true to start rotating by default
+    const rotationSpeed = 0.01;  // Adjust rotation speed as needed
+
     // Load the model
     loader.load(
-        'assets/orange.glb',
+        'assets/fortunecookie.glb',
         function (gltf) {
             console.log('Model loaded successfully');
 
             const model = gltf.scene;
 
-
+            ensureCastShadows(model);
 
 
             // Compute bounding box
@@ -435,12 +521,33 @@ function loadInteractiveModel() {
 
             modelLoaded = true;
 
-            // Add click event listener to the model
+            // Set up shadows for all meshes in the model
             model.traverse(function (object) {
                 if (object.isMesh) {
                     object.castShadow = true;
+                    object.receiveShadow = true;
                     object.userData.clickable = true;
                     object.userData.originalName = object.name;
+                }
+            });
+
+            // Create a rotation animation function
+            function animateModelRotation() {
+                if (isRotating && !isDragging) {
+                    // Rotate the model around the Y axis (can be changed to any axis)
+                    model.rotation.y += rotationSpeed;
+                }
+                requestAnimationFrame(animateModelRotation);
+            }
+
+            // Start the rotation animation
+            animateModelRotation();
+
+            // Add key press to toggle rotation (optional)
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'r' || event.key === 'R') {
+                    isRotating = !isRotating;
+                    console.log("Rotation toggled:", isRotating ? "ON" : "OFF");
                 }
             });
 
@@ -521,30 +628,6 @@ function loadInteractiveModel() {
                     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
                     raycaster.setFromCamera(mouse, camera);
                     const intersects = raycaster.intersectObjects(model.children, true);
-
-                    // if (intersects.length > 0) {
-                    //     const clickedObject = intersects[0].object;
-                    //     const worldPosition = new THREE.Vector3();
-                    //     clickedObject.getWorldPosition(worldPosition);
-
-                    //     console.log('Model clicked! Current position:');
-                    //     console.log('Model container position:', {
-                    //         x: modelContainer.position.x,
-                    //         y: modelContainer.position.y,
-                    //         z: modelContainer.position.z
-                    //     });
-                    //     console.log('Model container rotation:', {
-                    //         x: (modelContainer.rotation.x * 180 / Math.PI).toFixed(2) + '°',
-                    //         y: (modelContainer.rotation.y * 180 / Math.PI).toFixed(2) + '°',
-                    //         z: (modelContainer.rotation.z * 180 / Math.PI).toFixed(2) + '°'
-                    //     });
-                    //     console.log('Clicked object position:', {
-                    //         x: worldPosition.x,
-                    //         y: worldPosition.y,
-                    //         z: worldPosition.z
-                    //     });
-                    //     console.log('Clicked object name:', clickedObject.userData.originalName || clickedObject.name);
-                    // }
                 }
             });
         },
@@ -1813,7 +1896,7 @@ function createSection2() {
     createSection2ImageLayer(-7, 'assets/images/table.png', 0.2, 'section2-background');
 
 
-    // loadInteractiveModel(); //fix panning issue
+    loadInteractiveModel(); //fix panning issue
 
     // Add animated bowl
     createAnimatedBowl({ x: 0, y: 5, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
@@ -2025,7 +2108,7 @@ function updateBowlAnimation(timestamp) {
     }
 }
 
-// Function to create the animated bowl object
+// Modify createAnimatedBowl function to add a project property
 function createAnimatedBowl(position, size) {
     const textureLoader = new THREE.TextureLoader();
 
@@ -2052,7 +2135,7 @@ function createAnimatedBowl(position, size) {
 
         plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
 
-        // Store metadata
+        // Store metadata with project information
         plane.userData = {
             section: 'section2',
             name: 'bowl',
@@ -2061,7 +2144,8 @@ function createAnimatedBowl(position, size) {
             imagePath: bowlAnimation.imagePath,
             originalScale: new THREE.Vector3(1, 1, 1),
             hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
-            isHovered: false
+            isHovered: false,
+            project: true // Flag to indicate this is a project object
         };
 
         // Store original position for reset
@@ -2076,68 +2160,371 @@ function createAnimatedBowl(position, size) {
             sectionObjects.section2.clickableObjects.push(plane);
         }
 
-        console.log("Created animated bowl");
+        console.log("Created animated bowl with project info");
     }, undefined, (error) => {
         console.error("Error loading first bowl frame:", error);
     });
 }
 
-// Function to display a local image in a modal overlay
-function displayLocalImage(imagePath) {
-    // Create a modal to display the image
+// // Function to display a local image in a modal overlay
+// function displayLocalImage(imagePath) {
+//     // Create a modal to display the image
+//     const modal = document.createElement('div');
+//     modal.className = 'image-modal';
+//     modal.innerHTML = `
+//         <div class="modal-content">
+//             <span class="close-button">&times;</span>
+//             <img src="${imagePath}" alt="Bowl Image">
+//         </div>
+//     `;
+
+//     // Add styles for the modal
+//     const style = document.createElement('style');
+//     style.textContent = `
+//         .image-modal {
+//             position: fixed;
+//             top: 0;
+//             left: 0;
+//             width: 100%;
+//             height: 100%;
+//             background-color: rgba(0, 0, 0, 0.8);
+//             display: flex;
+//             justify-content: center;
+//             align-items: center;
+//             z-index: 1000;
+//         }
+//         .modal-content {
+//             position: relative;
+//             background-color: #222;
+//             padding: 20px;
+//             border-radius: 10px;
+//             max-width: 80%;
+//             max-height: 80%;
+//         }
+//         .modal-content img {
+//             max-width: 100%;
+//             max-height: 70vh;
+//             display: block;
+//             border-radius: 5px;
+//         }
+//         .close-button {
+//             position: absolute;
+//             top: 10px;
+//             right: 15px;
+//             color: white;
+//             font-size: 28px;
+//             font-weight: bold;
+//             cursor: pointer;
+//         }
+//         .close-button:hover {
+//             color: #ccc;
+//         }
+//     `;
+
+//     document.head.appendChild(style);
+//     document.body.appendChild(modal);
+
+//     // Add close functionality
+//     const closeButton = modal.querySelector('.close-button');
+//     closeButton.addEventListener('click', () => {
+//         document.body.removeChild(modal);
+//     });
+
+//     // Also close when clicking outside the image
+//     modal.addEventListener('click', (e) => {
+//         if (e.target === modal) {
+//             document.body.removeChild(modal);
+//         }
+//     });
+// }
+
+// Function to create and display project description popup
+function displayProjectDescription(objectName) {
+    // Create a modal to display the project information
     const modal = document.createElement('div');
-    modal.className = 'image-modal';
+    modal.className = 'project-modal';
+
+    // Get project data for the clicked object
+    const project = projectDescriptions[objectName] || {
+        title: "Project Details",
+        description: "Details for this project will be coming soon!",
+        technologies: ["JavaScript", "Three.js"],
+        image: `${objectName}1.png`, // Fallback to the first frame of animation
+        link: "#"
+    };
+
+    // Create HTML content with project details
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="project-content">
             <span class="close-button">&times;</span>
-            <img src="${imagePath}" alt="Bowl Image">
+            <div class="project-layout">
+                <div class="project-image-container">
+                    <img src="${project.image}" alt="${project.title}" class="project-image">
+                </div>
+                <div class="project-details">
+                    <h2 class="project-title">${project.title}</h2>
+                    <p class="project-description">${project.description}</p>
+                    <div class="tech-stack">
+                        <h3>Technologies:</h3>
+                        <ul>
+                            ${project.technologies.map(tech => `<li>${tech}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <a href="${project.link}" target="_blank" class="project-link">View Project</a>
+                </div>
+            </div>
         </div>
     `;
 
     // Add styles for the modal
-    const style = document.createElement('style');
-    style.textContent = `
-        .image-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            position: relative;
-            background-color: #222;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 80%;
-            max-height: 80%;
-        }
-        .modal-content img {
-            max-width: 100%;
-            max-height: 70vh;
-            display: block;
-            border-radius: 5px;
-        }
-        .close-button {
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close-button:hover {
-            color: #ccc;
-        }
-    `;
+    if (!document.getElementById('project-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'project-modal-styles';
+        style.textContent = `
+           
+.project-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    font-family: Arial, sans-serif;
+}
 
-    document.head.appendChild(style);
+.project-content {
+    position: relative;
+    background-color: #fff;
+    color: #333;
+    padding: 30px;
+    border-radius: 10px;
+    width: 70%;
+    max-width: 1100px; 
+    max-height: 90vh;
+    overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    box-sizing: border-box;
+}
+
+.project-modal.active {
+    opacity: 1;
+}
+
+.project-modal.active .project-content {
+    transform: translateY(0);
+}
+
+.project-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 50px; /* More spacing between sections */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.project-image-container {
+    flex: 1;
+    min-width: 250px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.project-details {
+    flex: 3; /* Give text much more space */
+    min-width: 300px;
+    max-width: 100%;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.project-image {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.project-title {
+    font-size: 28px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2a2a2a;
+    word-break: break-word;
+}
+
+.project-description {
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 25px;
+    word-break: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: block;
+    overflow-x: hidden;
+}
+
+.project-description p {
+    margin-bottom: 1em;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.tech-stack h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+    color: #333;
+}
+
+.tech-stack ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 25px 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.tech-stack li {
+    background-color: #f0f0f0;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #555;
+    box-sizing: border-box;
+}
+
+.project-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 25px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.project-link {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #4285f4;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+    box-sizing: border-box;
+}
+
+.demo-link {
+    background-color: #34a853;
+}
+
+.project-link:hover {
+    background-color: #3367d6;
+}
+
+.demo-link:hover {
+    background-color: #2d8e47;
+}
+
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: #555;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+    z-index: 5;
+}
+
+.close-button:hover {
+    color: #000;
+}
+
+.project-gallery {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.gallery-thumbnail {
+    width: 100%;
+    height: 70px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.gallery-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+.project-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 20px 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.stat-item {
+    background-color: #f8f8f8;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-transform: capitalize;
+    box-sizing: border-box;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #main-title {
+        font-size: 3rem;
+    }
+
+    #animated-subtitle {
+        font-size: 1rem;
+    }
+    
+    .project-layout {
+        flex-direction: column;
+        gap: 30px;
+    }
+    
+    .project-content {
+        padding: 20px;
+        width: 90%;
+    }
+    
+    .project-gallery {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+        `;
+        document.head.appendChild(style);
+    }
+
     document.body.appendChild(modal);
 
     // Add close functionality
@@ -2146,11 +2533,212 @@ function displayLocalImage(imagePath) {
         document.body.removeChild(modal);
     });
 
-    // Also close when clicking outside the image
+    // Also close when clicking outside the content
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             document.body.removeChild(modal);
         }
+    });
+
+    // Animation for the modal appearance
+    requestAnimationFrame(() => {
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.3s ease';
+
+        requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+        });
+    });
+}
+
+// Replace the existing displayLocalImage function with our new project description popup
+function displayLocalImage(imagePath) {
+    // Extract the object name from the image path
+    let objectName = 'unknown';
+
+    // Parse the name from the path (e.g., "assets/images/bowl1.png" -> "bowl")
+    const match = imagePath.match(/\/([^\/]+?)(\d+)\.png$/);
+    if (match && match[1]) {
+        objectName = match[1];
+    }
+
+    // Call our new function with the extracted object name
+    displayProjectDescription(objectName);
+}
+// Initialize our enhanced project system
+function initializeEnhancedProjectSystem() {
+    // Create the image directory for projects if it doesn't exist
+    if (!document.querySelector('#project-directory-notice')) {
+        const notice = document.createElement('div');
+        notice.id = 'project-directory-notice';
+        notice.style.display = 'none';
+        notice.textContent = 'Remember to create the assets/images/projects/ directory';
+        document.body.appendChild(notice);
+
+        console.log('Don\'t forget to create the project images directory: assets/images/projects/');
+    }
+
+    // Apply the enhanced click handler
+    updateMouseClickHandler();
+
+    console.log("Enhanced project description system initialized");
+}
+function formatDescription(text) {
+    // Split by double newlines (paragraphs)
+    const paragraphs = text.split('\n\n');
+
+    // Join paragraphs with proper HTML paragraph tags
+    return paragraphs.map(p => {
+        // Trim whitespace and replace single newlines with spaces
+        const cleanedParagraph = p.trim().replace(/\n/g, ' ');
+        return `<p>${cleanedParagraph}</p>`;
+    }).join('');
+}
+
+function closeModal(modal) {
+    modal.style.opacity = '0';
+    const content = modal.querySelector('.project-content');
+
+    if (content) {
+        content.style.transform = 'translateY(20px)';
+    }
+
+    // Remove after animation completes
+    setTimeout(() => {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    }, 300);
+}
+
+function displayEnhancedProjectDescription(objectName) {
+    // Create a modal to display the project information
+    const modal = document.createElement('div');
+    modal.className = 'project-modal';
+
+    // Get project data for the clicked object
+    const project = enhancedProjectDescriptions[objectName] || {
+        title: "Project Details",
+        shortDescription: "Details for this project will be coming soon!",
+        fullDescription: "A more detailed description of this project will be available soon.",
+        technologies: ["JavaScript", "Three.js"],
+        mainImage: `assets/images/${objectName}1.png`, // Fallback to the first frame of animation
+        galleryImages: [],
+        stats: {
+            duration: "Ongoing",
+            role: "Developer",
+            team: "Solo project",
+            status: "In development"
+        },
+        link: "#",
+        demoLink: null
+    };
+
+    // Format the description text into proper HTML paragraphs
+    function formatDescription(text) {
+        // Split by double newlines (paragraphs)
+        const paragraphs = text.split('\n\n');
+
+        // Join paragraphs with proper HTML paragraph tags
+        return paragraphs.map(p => {
+            // Trim whitespace and replace single newlines with spaces
+            const cleanedParagraph = p.trim().replace(/\n/g, ' ');
+            return `<p>${cleanedParagraph}</p>`;
+        }).join('');
+    }
+
+    // Create HTML content with project details
+    modal.innerHTML = `
+        <div class="project-content">
+            <span class="close-button">&times;</span>
+            <div class="project-layout">
+                <div class="project-image-container">
+                    <img src="${project.mainImage}" alt="${project.title}" class="project-image">
+                    
+                    ${project.galleryImages.length > 0 ? `
+                        <div class="project-gallery">
+                            ${project.galleryImages.map(img =>
+        `<img src="${img}" alt="Project screenshot" class="gallery-thumbnail">`
+    ).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="project-details">
+                    <h2 class="project-title">${project.title}</h2>
+                    <div class="project-description">
+                        ${formatDescription(project.fullDescription)}
+                    </div>
+                    
+                    <div class="project-stats">
+                        ${Object.entries(project.stats).map(([key, value]) =>
+        `<div class="stat-item"><i class="stat-icon"></i>${key}: ${value}</div>`
+    ).join('')}
+                    </div>
+                    
+                    <div class="tech-stack">
+                        <h3>Technologies:</h3>
+                        <ul>
+                            ${project.technologies.map(tech => `<li>${tech}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="project-links">
+                        <a href="${project.link}" target="_blank" class="project-link">View Code</a>
+                        ${project.demoLink ? `<a href="${project.demoLink}" target="_blank" class="project-link demo-link">Live Demo</a>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Add close functionality
+    const closeButton = modal.querySelector('.close-button');
+    closeButton.addEventListener('click', () => {
+        closeModal(modal);
+    });
+
+    // Also close when clicking outside the content
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal(modal);
+        }
+    });
+
+    // Add gallery image enlargement functionality
+    const galleryThumbnails = modal.querySelectorAll('.gallery-thumbnail');
+    const mainImage = modal.querySelector('.project-image');
+
+    if (galleryThumbnails.length > 0 && mainImage) {
+        galleryThumbnails.forEach(thumbnail => {
+            thumbnail.addEventListener('click', () => {
+                // Swap the images with a smooth transition
+                mainImage.style.opacity = '0';
+                setTimeout(() => {
+                    mainImage.src = thumbnail.src;
+                    mainImage.style.opacity = '1';
+                }, 150);
+            });
+        });
+    }
+
+    // Animation for the modal appearance
+    requestAnimationFrame(() => {
+        modal.style.opacity = '0';
+        const content = modal.querySelector('.project-content');
+
+        if (content) {
+            content.style.transform = 'translateY(20px)';
+        }
+
+        requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+
+            if (content) {
+                content.style.transform = 'translateY(0)';
+            }
+        });
     });
 }
 
@@ -2445,6 +3033,8 @@ function createAnimatedSpringRolls(position, size) {
             isHovered: false
         };
 
+
+
         // Store original position for reset
         storeLayerOriginalPosition(plane);
 
@@ -2493,6 +3083,93 @@ function updateSpringRollsAnimation(timestamp) {
 // SECTION 3: DESK VIEW WITH INTERACTIVE OBJECTS
 // ============================================================
 
+let drawableScreen = {
+    mesh: null,            // The Three.js mesh for the screen
+    canvas: null,          // HTML canvas for drawing
+    context: null,         // Canvas 2D context
+    texture: null,         // Three.js texture created from canvas
+    isHovering: false      // Whether mouse is hovering over screen
+};
+
+function createDrawableScreen() {
+    // Create an HTML canvas for drawing
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+
+    // Get the canvas context and set initial properties
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#FFFFFF';  // White background
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Create a texture from the canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    // Create a plane geometry for the screen
+    const geometry = new THREE.PlaneGeometry(2, 1.5);
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide
+    });
+
+    // Create the mesh
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, -window.innerHeight / 200 - 25, 0);
+    mesh.rotation.x = 0.1;
+
+    // Add to scene
+    scene.add(mesh);
+
+    // Store references
+    drawableScreen.mesh = mesh;
+    drawableScreen.canvas = canvas;
+    drawableScreen.context = context;
+    drawableScreen.texture = texture;
+
+    // Setup hover drawing event listener
+    renderer.domElement.addEventListener('mousemove', onDrawableScreenMouseMove);
+
+    return mesh;
+}
+
+function onDrawableScreenMouseMove(event) {
+    // Calculate mouse position in normalized device coordinates
+    const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+    );
+
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+
+    // Check for intersection with drawable screen
+    const intersects = raycaster.intersectObject(drawableScreen.mesh);
+
+    if (intersects.length > 0) {
+        // Get intersection point
+        const intersect = intersects[0];
+
+        // Convert intersection point UV coordinates to canvas coordinates
+        const canvasX = Math.floor(intersect.uv.x * drawableScreen.canvas.width);
+        const canvasY = Math.floor((1 - intersect.uv.y) * drawableScreen.canvas.height);
+
+        // Draw a line
+        const ctx = drawableScreen.context;
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 5;  // Adjust line thickness as desired
+        ctx.lineCap = 'round';
+
+        // Draw a dot or continue line
+        ctx.beginPath();
+        ctx.arc(canvasX, canvasY, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Update texture
+        drawableScreen.texture.needsUpdate = true;
+    }
+}
+
 // Variables for section 3 zoom state
 let isZoomedIn = false;
 let currentZoomedObject = null;
@@ -2540,64 +3217,148 @@ function createSection3ImageLayer(zPosition, imagePath, speed, name = '') {
     });
 }
 
-// Function to create clickable objects in section 3 that can be zoomed in on
-function createSection3ZoomableObject(imagePath, position, size, name = '', zoomDetails = {}) {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(imagePath, (texture) => {
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
+// // Function to create clickable objects in section 3 that can be zoomed in on
+// function createSection3ZoomableObject(imagePath, position, size, name = '', zoomDetails = {}) {
+//     const textureLoader = new THREE.TextureLoader();
+//     textureLoader.load(imagePath, (texture) => {
+//         const geometry = new THREE.PlaneGeometry(size.width, size.height);
+//         const material = new THREE.MeshBasicMaterial({
+//             map: texture,
+//             transparent: true,
+//             side: THREE.DoubleSide
+//         });
+
+//         const plane = new THREE.Mesh(geometry, material);
+
+//         // Adjust position for section 3
+//         const sectionSpacing = window.innerHeight / 60; //CHANGE THIS FOR SLISTIC PURPOSES
+//         const adjustedPosition = {
+//             x: position.x,
+//             y: position.y - sectionSpacing * 2,
+//             z: position.z
+//         };
+
+//         plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+//         // Store metadata
+//         plane.userData = {
+//             section: 'section3',
+//             isClickable: true,
+//             isZoomable: true,
+//             name: name,
+//             originalScale: new THREE.Vector3(1, 1, 1),
+//             hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+//             isHovered: false,
+
+//             // Zoom properties
+//             zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+//             zoomScale: zoomDetails.scale || 2,
+//             zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 },
+//             closeupTexture: null,
+//             closeupPath: zoomDetails.closeupPath || null
+//         };
+
+//         // If a closeup texture is provided, load it
+//         if (zoomDetails.closeupPath) {
+//             textureLoader.load(zoomDetails.closeupPath, (closeupTexture) => {
+//                 plane.userData.closeupTexture = closeupTexture;
+//             });
+//         }
+
+//         // Store original position for reset
+//         storeLayerOriginalPosition(plane);
+
+//         scene.add(plane);
+//         sectionObjects.section3.clickableObjects.push(plane);
+//         sectionObjects.section3.parallaxLayers.push(plane);
+
+//         console.log(`Created zoomable object in section 3: ${name}`);
+//     });
+// }
+// Function to create clickable objects in section 3 that can be zoomed in on (supports images and videos)
+function createSection3ZoomableObject(mediaPath, position, size, name = '', zoomDetails = {}) {
+    let material;
+    let geometry = new THREE.PlaneGeometry(size.width, size.height);
+
+    // Check if the mediaPath is a video or image
+    if (mediaPath.endsWith('.mp4') || mediaPath.endsWith('.webm') || mediaPath.endsWith('.ogg')) {
+        // Create video element
+        const video = document.createElement('video');
+        video.src = mediaPath;
+        video.loop = true;
+        video.muted = true;  // Ensure it's muted
+        video.autoplay = true;  // Set autoplay if needed
+        video.play().catch(error => {
+            console.error("Video play error:", error);
+        });
+
+        // Create VideoTexture
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.generateMipmaps = false;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // Create material using the VideoTexture
+        material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+    } else {
+        // Load image texture
+        const textureLoader = new THREE.TextureLoader();
+        material = new THREE.MeshBasicMaterial({
+            map: textureLoader.load(mediaPath),
             transparent: true,
             side: THREE.DoubleSide
         });
+    }
 
-        const plane = new THREE.Mesh(geometry, material);
+    const plane = new THREE.Mesh(geometry, material);
 
-        // Adjust position for section 3
-        const sectionSpacing = window.innerHeight / 60; //CHANGE THIS FOR SLISTIC PURPOSES
-        const adjustedPosition = {
-            x: position.x,
-            y: position.y - sectionSpacing * 2,
-            z: position.z
-        };
+    // Adjust position for section 3
+    const sectionSpacing = window.innerHeight / 60; // Change this for stylistic purposes
+    const adjustedPosition = {
+        x: position.x,
+        y: position.y - sectionSpacing * 2,
+        z: position.z
+    };
 
-        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+    plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
 
-        // Store metadata
-        plane.userData = {
-            section: 'section3',
-            isClickable: true,
-            isZoomable: true,
-            name: name,
-            originalScale: new THREE.Vector3(1, 1, 1),
-            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
-            isHovered: false,
+    // Store metadata
+    plane.userData = {
+        section: 'section3',
+        isClickable: true,
+        isZoomable: true,
+        name: name,
+        originalScale: new THREE.Vector3(1, 1, 1),
+        hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+        isHovered: false,
 
-            // Zoom properties
-            zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
-            zoomScale: zoomDetails.scale || 2,
-            zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 },
-            closeupTexture: null,
-            closeupPath: zoomDetails.closeupPath || null
-        };
+        // Zoom properties
+        zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+        zoomScale: zoomDetails.scale || 2,
+        zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 },
+        closeupTexture: null,
+        closeupPath: zoomDetails.closeupPath || null
+    };
 
-        // If a closeup texture is provided, load it
-        if (zoomDetails.closeupPath) {
-            textureLoader.load(zoomDetails.closeupPath, (closeupTexture) => {
-                plane.userData.closeupTexture = closeupTexture;
-            });
-        }
+    // If a closeup image is provided, load it
+    if (zoomDetails.closeupPath) {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(zoomDetails.closeupPath, (closeupTexture) => {
+            plane.userData.closeupTexture = closeupTexture;
+        });
+    }
 
-        // Store original position for reset
-        storeLayerOriginalPosition(plane);
+    // Store original position for reset
+    storeLayerOriginalPosition(plane);
 
-        scene.add(plane);
-        sectionObjects.section3.clickableObjects.push(plane);
-        sectionObjects.section3.parallaxLayers.push(plane);
+    scene.add(plane);
+    sectionObjects.section3.clickableObjects.push(plane);
+    sectionObjects.section3.parallaxLayers.push(plane);
 
-        console.log(`Created zoomable object in section 3: ${name}`);
-    });
+    console.log(`Created zoomable object in section 3: ${name}`);
 }
+
 
 // Function to handle clicking on a zoomable object
 function handleZoomableObjectClick(object) {
@@ -2614,31 +3375,40 @@ function handleZoomableObjectClick(object) {
     }
 }
 
-// Function to zoom in on an object
+/// Function to zoom in on an object by moving the camera
 function zoomInOn(object) {
     if (!object || isZoomedIn) return;
 
     // Store current state
     isZoomedIn = true;
     currentZoomedObject = object;
+
+    // Store original camera position and rotation for later restoration
     originalCameraPosition = {
         position: camera.position.clone(),
-        rotation: camera.rotation.clone()
+        target: new THREE.Vector3(0, camera.position.y, 0) // Assuming camera looks at center by default
     };
 
     // If we have a closeup texture, save the original first and then switch
     if (object.userData.closeupTexture) {
         // Save the original texture
         object.userData.originalTexture = object.material.map;
-        // Also save path for fallback
-        object.userData.originalTexturePath = object.userData.closeupPath.replace('_closeup', '');
-
-        // Then switch to closeup
+        // Switch to closeup
         object.material.map = object.userData.closeupTexture;
         object.material.needsUpdate = true;
     }
 
-    // Create a semi-transparent overlay to dim other elements
+    // Calculate target position for camera (in front of the object)
+    const objectPosition = new THREE.Vector3();
+    object.getWorldPosition(objectPosition);
+
+    // Create a position slightly in front of the object
+    const targetPosition = objectPosition.clone();
+
+    // Adjust the z position to be closer to the object
+    targetPosition.z += 2; // Move camera 2 units in front of the object
+
+    // Create a visual overlay to dim other elements
     createOverlay();
 
     // Disable scrolling while zoomed in
@@ -2647,26 +3417,36 @@ function zoomInOn(object) {
     // Add a "back" button
     addBackButton();
 
-    // Apply zoom animation
-    animateZoomIn(object);
+    // Animate camera to move toward the object
+    gsap.to(camera.position, {
+        x: targetPosition.x,
+        y: targetPosition.y,
+        z: targetPosition.z - 3.5, // TODO: Position camera 3 units in front of the object
+        duration: 1.2,
+        ease: "power2.inOut",
+        onUpdate: function () {
+            // Optional: make camera continuously look at the object during animation
+            camera.lookAt(objectPosition);
+        },
+        onComplete: function () {
+            camera.lookAt(objectPosition);
+            console.log("Camera zoom-in complete!");
+        }
+    });
 
     // Add click outside to zoom out
     document.addEventListener('click', handleClickOutside);
 }
-// Function to zoom out
+// Function to zoom out by moving camera back to original position
 function zoomOut() {
     if (!isZoomedIn || !currentZoomedObject) return;
 
     // Switch back to original texture if needed
     if (currentZoomedObject.userData.closeupTexture) {
-        // Don't try to access the texture path directly
-        // Instead, use the original texture that was saved or reload it
         if (currentZoomedObject.userData.originalTexture) {
-            // If we saved the original texture, use it
             currentZoomedObject.material.map = currentZoomedObject.userData.originalTexture;
             currentZoomedObject.material.needsUpdate = true;
         } else {
-            // Otherwise, reload from the path (without trying to access .src)
             const originalTexturePath = currentZoomedObject.userData.originalTexturePath;
             if (originalTexturePath) {
                 new THREE.TextureLoader().load(originalTexturePath, (texture) => {
@@ -2677,86 +3457,100 @@ function zoomOut() {
         }
     }
 
-    // Remove overlay
-    removeOverlay();
-
-    // Enable scrolling again
-    scrollingEnabled = true;
-
-    // Remove back button
-    removeBackButton();
-
-    // Remove click outside handler
-    document.removeEventListener('click', handleClickOutside);
-
-    // Apply zoom out animation
-    animateZoomOut();
-
-    // Clear state
-    isZoomedIn = false;
-    currentZoomedObject = null;
-}
-
-// Function to animate zooming in
-function animateZoomIn(object) {
-    const zoomPosition = object.userData.zoomPosition;
-    const zoomScale = object.userData.zoomScale;
-    const zoomRotation = object.userData.zoomRotation;
-
-    // // Store original properties to restore later
-    // object.userData.originalPosition = object.position.clone();
-    // object.userData.originalRotation = object.rotation.clone();
-    // object.userData.originalScale = object.scale.clone();
-    // Move object to center of screen and scale it up
-    if (typeof gsap !== 'undefined') {
-        // Animate with GSAP
-        gsap.to(object.position, {
-            x: 0, // Center horizontally
-            y: camera.position.y, // Match camera height
-            z: -2, // Bring forward
-            duration: 0.8,
-            ease: "power2.out"
-        });
-
-        gsap.to(object.scale, {
-            x: zoomScale,
-            y: zoomScale,
-            z: zoomScale,
-            duration: 1.5,
-            ease: "power2.out",
-            onComplete: () => {
-                console.log("Zoom-in complete, object stays big!");
-                isZoomedIn = true; // Ensure state is properly set
-            }
-        });
-
-        // Make sure rotation is set properly
-        gsap.to(object.rotation, {
-            x: zoomRotation.x,
-            y: zoomRotation.y,
-            z: zoomRotation.z,
-            duration: 0.8,
-            ease: "power2.out"
-        });
-    } else {
-        // Fallback without GSAP
-        object.position.set(0, camera.position.y, -2);
-        object.scale.set(zoomScale, zoomScale, zoomScale);
-        object.rotation.set(zoomRotation.x, zoomRotation.y, zoomRotation.z);
-        object.userData.isZoomedIn = true;
-
-        console.log("Fallback zoom-in complete, object stays big!");
-    }
-
-    // Fade out other objects
-    sectionObjects.section3.parallaxLayers.forEach(layer => {
-        if (layer !== object) {
-            gsap.to(layer.material, {
-                opacity: 0.2,
-                duration: 0.5
+    // After a brief delay, move camera back to original position
+    setTimeout(() => {
+        if (originalCameraPosition) {
+            // Animate camera back to original position
+            gsap.to(camera.position, {
+                x: originalCameraPosition.position.x,
+                y: originalCameraPosition.position.y,
+                z: originalCameraPosition.position.z,
+                duration: 1.2,
+                ease: "power2.inOut",
+                onUpdate: function () {
+                    // Optional: gradually transition camera look target
+                    camera.lookAt(0, camera.position.y, 0);
+                },
+                onComplete: function () {
+                    camera.lookAt(0, camera.position.y, 0);
+                    console.log("Camera zoom-out complete!");
+                }
             });
         }
+
+        // Remove overlay and back button
+        removeOverlay();
+        removeBackButton();
+
+        // Enable scrolling again
+        scrollingEnabled = true;
+
+        // Remove click outside handler
+        document.removeEventListener('click', handleClickOutside);
+
+        // Reset state
+        isZoomedIn = false;
+        currentZoomedObject = null;
+    }, 500); // Half-second delay before camera moves back
+}
+// Function to zoom in on an object by moving the camera //TODO: fix the positioning of thse hoes
+function zoomInOn(object) {
+    if (!object || isZoomedIn) return;
+
+    // Store current state
+    isZoomedIn = true;
+    currentZoomedObject = object;
+
+    // Store original camera position and rotation for later restoration
+    originalCameraPosition = {
+        position: camera.position.clone(),
+        target: new THREE.Vector3(0, camera.position.y, 0)
+    };
+
+    // Calculate target position for camera (in front of the object)
+    const objectPosition = new THREE.Vector3();
+    object.getWorldPosition(objectPosition);
+
+    // Calculate how much to move the camera
+    // Since your camera is at z = 5, we need a different approach
+    const currentZ = camera.position.z; // Should be 5 based on your info
+    const targetZ = objectPosition.z + 2; // Position camera 3 units in front of object
+    const moveAmount = currentZ - targetZ; // How much to move the camera
+
+    // If we have a closeup texture, save the original first and then switch
+    if (object.userData.closeupTexture) {
+        // Save the original texture
+        object.userData.originalTexture = object.material.map;
+        // Switch to closeup
+        object.material.map = object.userData.closeupTexture;
+        object.material.needsUpdate = true;
+    }
+
+    // Create a visual overlay to dim other elements
+    //  createOverlay();
+
+    // Disable scrolling while zoomed in
+    scrollingEnabled = false;
+
+    // Add a "back" button
+    addBackButton();
+
+    // Animate camera to move toward the object
+    gsap.to(camera.position, {
+        x: objectPosition.x, // Center on the object horizontally
+        y: objectPosition.y, // Center on the object vertically
+        z: targetZ, // Move camera to the calculated z position
+        duration: 1.2,
+        ease: "power2.inOut",
+        onComplete: function () {
+            // Make sure camera is looking at the object
+            camera.lookAt(objectPosition);
+            console.log("Camera zoom-in complete!");
+        }
     });
+
+    // Add click outside to zoom out
+    document.addEventListener('click', handleClickOutside);
 }
 
 // Function to animate zooming out
@@ -2908,6 +3702,10 @@ function onMouseClick(event) {
         } else if (clickedObject.userData.url) {
             // Handle URL action (for objects with URLs)
             window.open(clickedObject.userData.url, '_blank');
+        } else if (clickedObject.userData.name && currentSection >= 0.5 && currentSection < 1.5) {
+            // We're in section 2 and clicked on a named object (bowl, tea, etc.)
+            // Instead of showing an image, show project description
+            displayProjectDescription(clickedObject.userData.name);
         } else if (clickedObject.userData.imagePath) {
             // Handle local image display
             displayLocalImage(clickedObject.userData.imagePath);
@@ -2916,35 +3714,109 @@ function onMouseClick(event) {
         console.log(`Clicked on ${clickedObject.userData.name}`);
     }
 }
+
 // Create section 3
 function createSection3() {
     console.log("Creating section 3...");
     // Background layers with parallax
-    createSection3ImageLayer(-6, 'assets/images/section3/desk_background.png', 0.2, 'desk-background');
-    createSection3ImageLayer(-5, 'assets/images/section3/desk_surface.png', 0.4, 'desk-surface');
-    createSection3ImageLayer(-4, 'assets/images/section3/desk_items.png', 0.6, 'desk-items');
-    // createSection3ImageLayer(-3, 'assets/images/section3/books.png', 0.7, 'books');
-    createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
+    createSection3ImageLayer(-6, 'assets/images/section3/background.png', 0.2, 'background');
+    createSection3ImageLayer(-2, 'assets/images/section3/bulletin_board.png', 0.2, 'bulletinboard');
+    // createSection3ImageLayer(-1, 'assets/images/section3/desk_surface.png', 0.4, 'desk-surface');
+    createSection3ImageLayer(1, 'assets/images/section3/desk.png', 0.6, 'desk');
+    // // createSection3ImageLayer(-3, 'assets/images/section3/books.png', 0.7, 'books');
+    //  createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
+
+    createSection3ZoomableObject(
+        'assets/images/section3/sticky.png',
+        { x: -3, y: 7.2, z: 0.1 },
+        { width: 3, height: 2.5 },
+        'instagram',
+        {
+            closeupPath: 'assets/images/section3/sticky.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
 
     // Add zoomable objects
     createSection3ZoomableObject(
-        'assets/images/section3/bulletin_board.png',
-        { x: -1.5, y: 0.5, z: -2.5 },
-        { width: 1.0, height: 1.2 },
-        'bulletin-board',
+        'assets/images/section3/insta.png',
+        { x: 1, y: 4.8, z: 0 },
+        { width: 2, height: 3.5 },
+        'instagram',
         {
-            closeupPath: 'assets/images/section3/bulletin_board.png',
-            position: { x: 0, y: -window.innerHeight / 45 * 2, z: -2 },
+            closeupPath: 'assets/images/section3/insta.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+    createSection3ZoomableObject(
+        'assets/images/section3/instanote.png',
+        { x: 3, y: 5, z: 0 },
+        { width: 2.5, height: 2.5 },
+        'instanote',
+        {
+            closeupPath: 'assets/images/section3/instanote.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
             scale: 3,
             rotation: { x: 0, y: 0, z: 0 }
         }
     );
 
 
+    createSection3ZoomableObject(
+        'assets/images/section3/characterdesign1.png',
+        { x: -4, y: 5.5, z: 0 },
+        { width: 3, height: 3.2 },
+        'handsomePL1',
+        {
+            closeupPath: 'assets/images/section3/characterdesign1.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
 
-    // Add more zoomable objects as needed...
+
+    // Add zoomable objects
+    createSection3ZoomableObject(
+        'assets/images/section3/scolastic.png',
+        { x: 1, y: 7.5, z: 0 },
+        { width: 5.5, height: 2.1 },
+        'instagram',
+        {
+            closeupPath: 'assets/images/section3/scolastic.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+
+    createSection3ZoomableObject(
+        'assets/images/section3/characterdesign2.png',
+        { x: -2, y: 4, z: 0 },
+        { width: 3, height: 3.2 },
+        'handsomePL2',
+        {
+            closeupPath: 'assets/images/section3/characterdesign2.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+    //enhanceSection3WithDrawableScreen(); // this is not working bro
+
 }
 
+// Call this in your section creation function
+function enhanceSection3WithDrawableScreen() {
+    createDrawableScreen();
+}
 // ============================================================
 // INTERACTION HANDLERS
 // ============================================================
@@ -3475,6 +4347,7 @@ function createScene() {
     //   initializeAnimatedText();
     createSection2();
     createSection3();
+    // enhanceSection3WithDrawableScreen()
 
 
 
@@ -3497,6 +4370,7 @@ function createScene() {
 
 // Initialize the scene when the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
+
     createScene();
     animate();
 });
