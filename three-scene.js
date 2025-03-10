@@ -10,13 +10,30 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000);
 document.getElementById('container').appendChild(renderer.domElement);
 
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional: for softer shadows
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const ambientLight = new THREE.AmbientLight(0xfff2cc, 0.5);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+const directionalLight = new THREE.DirectionalLight(0xffe699, 0.8);
+
 directionalLight.position.set(0, 1, 1);
+directionalLight.castShadow = true;
+
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 50;
+directionalLight.shadow.camera.left = -10;
+directionalLight.shadow.camera.right = 10;
+directionalLight.shadow.camera.top = 10;
+directionalLight.shadow.camera.bottom = -10;
 scene.add(directionalLight);
+
+
+scene.add(directionalLight);
+
 
 // Set up raycaster for mouse interaction
 const raycaster = new THREE.Raycaster();
@@ -29,7 +46,8 @@ const mouse = new THREE.Vector2();
 const sectionObjects = {
     section1: {
         parallaxLayers: [],
-        clickableObjects: []
+        clickableObjects: [],
+        nonClickableObjects: []
     },
     section2: {
         parallaxLayers: [],
@@ -42,12 +60,12 @@ const sectionObjects = {
 };
 
 
-const panLimits = {
-    minX: -5,  // Maximum left pan
-    maxX: 5,   // Maximum right pan
-    minY: -3,  // Maximum up pan
-    maxY: 3    // Maximum down pan
-};
+// const panLimits = {
+//     minX: -3,  // Maximum left pan
+//     maxX: 3,   // Maximum right pan
+//     minY: 0,  // Maximum up pan
+//     maxY: 0    // Maximum down pan
+// };
 
 
 // Animation planes are global
@@ -55,8 +73,7 @@ let normalAnimationPlane = null;
 let thumbsUpAnimationPlane = null;
 let thumbsDownAnimationPlane = null;
 
-// Section-specific reference objects
-let groceryFrontLayer = null; // Section 1 special layer
+
 
 // Animation and frame state
 const animationState = {
@@ -105,7 +122,50 @@ const panKeys = {
     up: 'w',      // W key to pan up
     down: 's'     // S key to pan down
 };
+// Animation state for the bowl
+const bowlAnimation = {
+    frames: [],
+    currentFrame: 0,
+    frameCount: 3,  // 3 frames total
+    isClickable: true,
+    imagePath: 'assets/images/bowl1.png'  // Path to display when clicked
+};
 
+// Animation state for the tea
+const teaAnimation = {
+    frames: [],
+    currentFrame: 0,
+    frameCount: 8,  // 
+    isClickable: true,
+    imagePath: 'assets/images/tea1.png',  // Path to display when clicked
+    framesLoaded: 0,
+    transitionDuration: 3, // 3 seconds per frame
+    lastTransitionTime: 0
+};
+
+// Animation state for the soy sauce
+const soySauceAnimation = {
+    frames: [],
+    currentFrame: 0,
+    frameCount: 4,
+    isClickable: true,
+    imagePath: 'assets/images/soysauce1.png',  // Path to display when clicked
+    framesLoaded: 0,
+    transitionDuration: 0.5, // 3 seconds per frame
+    lastTransitionTime: 0
+};
+
+// Animation state for the spring rolls
+const springRollsAnimation = {
+    frames: [],
+    currentFrame: 0,
+    frameCount: 3,  // 3 frames for spring rolls
+    isClickable: true,
+    imagePath: 'assets/images/springrolls1.png',  // Path to display when clicked
+    framesLoaded: 0,
+    transitionDuration: 0.5,
+    lastTransitionTime: 0
+};
 
 
 // Initialize variables for model interaction (part 2 for now)
@@ -126,28 +186,59 @@ function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //shou
         height: visibleHeight * (1 + extraMargin)
     };
 }
+
+function calculateFullscreenSizeW(distanceFromCamera, extraMargin = 0.1, widthMultiplier = 1.0) {
+    const fov = camera.fov * (Math.PI / 180);
+    const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
+    const visibleWidth = visibleHeight * camera.aspect;
+    return {
+        width: visibleWidth * (1 + extraMargin) * widthMultiplier,
+        height: visibleHeight * (1 + extraMargin)
+    };
+}
+
 function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
-    modelContainer.scale.set(3, 3, 3); // NOTE TO SELF: AJUSTING THIS SCALE AND THE Y VALUE IS HOW TO GET THIS SHIT TO FUCKING LOAD 
-
-    modelContainer.position.set(0, -window.innerHeight / 45 + 3, 0); // Keep initial position
-
+    modelContainer.scale.set(1, 1, 1);
+    modelContainer.position.set(-6, -window.innerHeight / 45 + 10, -1);
+    modelContainer.rotation.x = (Math.PI / 2);
+    modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
 
     console.log("Model container added to scene");
-    storeLayerOriginalPosition(modelContainer);
+
+    if (typeof storeLayerOriginalPosition === 'function') {
+        storeLayerOriginalPosition(modelContainer);
+    } else {
+        console.warn("storeLayerOriginalPosition is not defined - this may affect controls");
+    }
 
     // Initialize the GLTF loader
     const loader = new THREE.GLTFLoader();
 
-    // Load the model (replace with your model path)
+    // For drag functionality
+    let isDragging = false;
+    let previousMousePosition = {
+        x: 0,
+        y: 0
+    };
+    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const dragOffset = new THREE.Vector3();
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const intersection = new THREE.Vector3();
+
+    // Load the model
     loader.load(
-        'assets/test3.glb',
+        'assets/orange.glb',
         function (gltf) {
             console.log('Model loaded successfully');
 
             const model = gltf.scene;
+
+
+
 
             // Compute bounding box
             const box = new THREE.Box3().setFromObject(model);
@@ -163,22 +254,127 @@ function loadInteractiveModel() {
             box.setFromObject(model);
             const newCenter = box.getCenter(new THREE.Vector3());
 
-            // Center model to pivot (X and Z), but keep original Y height
+            // Center model to pivot (X and Z), but adjust Y to be higher in view
             model.position.sub(newCenter);
-            model.position.y += size.y / 2; // Adjust Y to prevent it from sinking
+            model.position.y += size.y;
 
             // Add the model to the container
             modelContainer.add(model);
 
-            // Lighting
-            const modelLight = new THREE.DirectionalLight(0xffffff, 1);
-            modelLight.position.set(0, 1, 1);
-            modelContainer.add(modelLight);
-
-            const ambientModelLight = new THREE.AmbientLight(0xffffff, 0.5);
-            modelContainer.add(ambientModelLight);
-
             modelLoaded = true;
+
+            // Add click event listener to the model
+            model.traverse(function (object) {
+                if (object.isMesh) {
+                    object.castShadow = true;
+                    object.userData.clickable = true;
+                    object.userData.originalName = object.name;
+                }
+            });
+
+            // Mouse down event - start dragging
+            document.addEventListener('mousedown', function (event) {
+                // Convert mouse position to normalized device coordinates
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                // Update the raycaster with the camera and mouse position
+                raycaster.setFromCamera(mouse, camera);
+
+                // Calculate objects intersecting the ray
+                const intersects = raycaster.intersectObjects(model.children, true);
+
+                if (intersects.length > 0) {
+                    isDragging = true;
+
+                    // Save mouse position
+                    previousMousePosition = {
+                        x: event.clientX,
+                        y: event.clientY
+                    };
+
+                    // Calculate drag plane
+                    dragPlane.setFromNormalAndCoplanarPoint(
+                        camera.getWorldDirection(dragPlane.normal),
+                        intersects[0].point
+                    );
+
+                    // Calculate the offset between the intersection point and the model position
+                    raycaster.ray.intersectPlane(dragPlane, intersection);
+                    modelContainer.worldToLocal(intersection.clone());
+                    dragOffset.copy(intersection).sub(modelContainer.position);
+
+                    // Prevent other events
+                    event.preventDefault();
+                }
+            });
+
+            // Mouse move event - perform dragging
+            document.addEventListener('mousemove', function (event) {
+                if (isDragging) {
+                    // Update the raycaster with new mouse position
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    raycaster.setFromCamera(mouse, camera);
+
+                    // Find intersection with the drag plane
+                    if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                        // Update model position, excluding the offset
+                        modelContainer.position.copy(intersection).sub(dragOffset);
+                    }
+
+                    // Prevent other events
+                    event.preventDefault();
+                }
+            });
+
+            // Mouse up event - stop dragging
+            document.addEventListener('mouseup', function () {
+                if (isDragging) {
+                    isDragging = false;
+
+                    // Log the new position
+                    console.log('Model dragged to position:', {
+                        x: modelContainer.position.x,
+                        y: modelContainer.position.y,
+                        z: modelContainer.position.z
+                    });
+                }
+            });
+
+            // Click event for logging (optional, can be removed if not needed)
+            document.addEventListener('click', function (event) {
+                if (!isDragging) {  // Only log if not dragging
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObjects(model.children, true);
+
+                    // if (intersects.length > 0) {
+                    //     const clickedObject = intersects[0].object;
+                    //     const worldPosition = new THREE.Vector3();
+                    //     clickedObject.getWorldPosition(worldPosition);
+
+                    //     console.log('Model clicked! Current position:');
+                    //     console.log('Model container position:', {
+                    //         x: modelContainer.position.x,
+                    //         y: modelContainer.position.y,
+                    //         z: modelContainer.position.z
+                    //     });
+                    //     console.log('Model container rotation:', {
+                    //         x: (modelContainer.rotation.x * 180 / Math.PI).toFixed(2) + '°',
+                    //         y: (modelContainer.rotation.y * 180 / Math.PI).toFixed(2) + '°',
+                    //         z: (modelContainer.rotation.z * 180 / Math.PI).toFixed(2) + '°'
+                    //     });
+                    //     console.log('Clicked object position:', {
+                    //         x: worldPosition.x,
+                    //         y: worldPosition.y,
+                    //         z: worldPosition.z
+                    //     });
+                    //     console.log('Clicked object name:', clickedObject.userData.originalName || clickedObject.name);
+                    // }
+                }
+            });
         },
         function (xhr) {
             console.log((xhr.loaded / xhr.total * 100) + '% loaded');
@@ -190,7 +386,6 @@ function loadInteractiveModel() {
 
     return modelContainer;
 }
-
 // Function to update model visibility based on current section
 function updateModelVisibility() {
     if (!modelLoaded || !modelContainer) return;
@@ -202,6 +397,8 @@ function updateModelVisibility() {
         modelContainer.visible = false;
     }
 }
+
+
 
 
 function setupPartialVisibility(plane, visiblePortion = 0.4) {
@@ -447,30 +644,70 @@ function processPanning() {
     }
 }
 
-/// Update the processSectionPanning function to use WASD
+// Fix the processSectionPanning function to include limits
 function processSectionPanning(layers) {
     if (!layers) return;
 
     const panAmount = panSpeed;
 
+    // Define pan limits
+    const panLimits = {
+        minX: -3, // Maximum distance to the left
+        maxX: 3,  // Maximum distance to the right
+        minY: 0,  // Maximum distance up
+        maxY: 0    // Maximum distance down
+    };
+
     layers.forEach(layer => {
+        // Skip objects explicitly marked with noPanning
+        if (layer.userData.noPanning === true) return;
+
+        // Store original position if not already stored
+        if (layer.userData.originalPanX === undefined) {
+            layer.userData.originalPanX = layer.position.x;
+            layer.userData.originalPanY = layer.position.y;
+        }
+
+        // Calculate new position based on current position
         let newX = layer.position.x;
         let newY = layer.position.y;
 
-        // Pan left/right with WASD
-        if (keysPressed[panKeys.left]) {
-            newX = Math.min(panLimits.maxX, layer.position.x + panAmount);
-        } else if (keysPressed[panKeys.right]) {
-            newX = Math.max(panLimits.minX, layer.position.x - panAmount);
+        // Pan left/right with limits
+        if (keysPressed['a']) {
+            // Calculate the distance from original position
+            const currentOffsetX = layer.position.x - layer.userData.originalPanX;
+
+            // Only allow panning if within limits
+            if (currentOffsetX < panLimits.maxX) {
+                newX = layer.position.x + panAmount;
+            }
+        } else if (keysPressed['d']) {
+            // Calculate the distance from original position
+            const currentOffsetX = layer.userData.originalPanX - layer.position.x;
+
+            // Only allow panning if within limits
+            if (currentOffsetX < panLimits.maxX) {
+                newX = layer.position.x - panAmount;
+            }
         }
 
-        // Pan up/down with WASD
-        if (keysPressed[panKeys.up]) {
-            newY = Math.max(panLimits.minY + layer.userData.parallaxSpeed * currentSection * 10,
-                layer.position.y - panAmount);
-        } else if (keysPressed[panKeys.down]) {
-            newY = Math.min(panLimits.maxY + layer.userData.parallaxSpeed * currentSection * 10,
-                layer.position.y + panAmount);
+        // Pan up/down with limits
+        if (keysPressed['w']) {
+            // Calculate the distance from original position
+            const currentOffsetY = layer.userData.originalPanY - layer.position.y;
+
+            // Only allow panning if within limits
+            if (currentOffsetY < panLimits.maxY) {
+                newY = layer.position.y - panAmount;
+            }
+        } else if (keysPressed['s']) {
+            // Calculate the distance from original position
+            const currentOffsetY = layer.position.y - layer.userData.originalPanY;
+
+            // Only allow panning if within limits
+            if (currentOffsetY < panLimits.maxY) {
+                newY = layer.position.y + panAmount;
+            }
         }
 
         // Apply new position
@@ -610,10 +847,10 @@ function storeLayerOriginalPosition(layer) {
 // ============================================================
 // SECTION 1: GROCERY STORE / MAIN PARALLAX
 // ============================================================
-function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 5, name = '', isClickable = false, url = '') {
+function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 3, name = '', isClickable = false, url = '', heightPosition = 0) {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(imagePath, (texture) => {
-        const size = calculateFullscreenSize(zPosition, 0.5);
+        const size = calculateFullscreenSizeW(zPosition, 0.1, 1.2); //CHANGE SECOND PARAM FOR SCALE PURPOSES
 
         const geometry = new THREE.PlaneGeometry(size.width, size.height);
         const material = new THREE.MeshBasicMaterial({
@@ -623,17 +860,17 @@ function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 5
         });
 
         const plane = new THREE.Mesh(geometry, material);
-        plane.position.z = zPosition;
+        plane.position.z = zPosition - 0.5;
 
         // Set initial position for intro animation
         plane.position.y = initialOffset;
 
-        // Store metadata
+        // Apply the height position parameter
         plane.userData = {
             section: 'section1',
             name: name,
             parallaxSpeed: speed,
-            targetY: 0,
+            targetY: heightPosition, // Modified to use the new parameter
             initialOffset: initialOffset,
             initialDelay: animationState.layersLoaded * animationState.introDelay,
             originalScale: plane.scale.clone(),
@@ -652,12 +889,6 @@ function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 5
             sectionObjects.section1.clickableObjects.push(plane);
         }
 
-        // Check if this is the groceryfront layer
-        if (name === 'groceryfront') {
-            groceryFrontLayer = plane;
-            setupPartialVisibility(groceryFrontLayer, 0.4);
-        }
-
         animationState.layersLoaded++;
 
         window.addEventListener('resize', () => {
@@ -667,6 +898,46 @@ function createSection1ImageLayer(zPosition, imagePath, speed, initialOffset = 5
         });
     });
 }
+function createSection1NonClickableObject(imagePath, position, size, parallaxSpeed, url, name = '', initialOffset = 5) {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(imagePath, (texture) => {
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Set initial position
+        plane.position.set(position.x, position.y + initialOffset, position.z);
+
+        // Store metadata for both parallax and clickable functionality
+        plane.userData = {
+            section: 'section1',
+            parallaxSpeed: parallaxSpeed,
+            initialOffset: initialOffset,
+            initialDelay: animationState.layersLoaded * animationState.introDelay,
+            originY: position.y,
+            isClickable: true,
+            url: url,
+            name: name,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1, 1, 1),
+            isHovered: false
+        };
+
+        scene.add(plane);
+        sectionObjects.section1.nonClickableObjects.push(plane);
+        sectionObjects.section1.parallaxLayers.push(plane);
+
+        animationState.layersLoaded++;
+
+        console.log(`Created section 1 clickable object: ${name}`);
+    });
+}
+
 
 function createSection1ClickableObject(imagePath, position, size, parallaxSpeed, url, name = '', initialOffset = 5) {
     const textureLoader = new THREE.TextureLoader();
@@ -710,7 +981,8 @@ function createSection1ClickableObject(imagePath, position, size, parallaxSpeed,
 
 function createAnimationPlanes() {
     // Position this in front of other elements
-    const zPosition = -1.5;
+    const zPosition = -0.2;
+
 
     // Calculate appropriate size
     const fullSize = calculateFullscreenSize(zPosition);
@@ -725,6 +997,8 @@ function createAnimationPlanes() {
         size.height * 0.2,
         zPosition
     );
+
+
 
     // 1. Create normal animation plane
     if (frameAnimation.normalFrames.length > 0) {
@@ -862,22 +1136,99 @@ function preloadAnimationFrames() {
 
 function createSection1() {
     // Create all section 1 layers
-    createSection1ImageLayer(-6, 'assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor'); // set floor to oe or else overalp
-    createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf');
-    createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2');
+    createSection1ImageLayer(-6, 'assets/images/groceryfloor.png', 0.8, 8, 'groceryfloor', 0); // set floor to oe or else overalp
+    createSection1ImageLayer(-5, 'assets/images/groceryshelf.png', 0.4, 6, 'groceryshelf', 0);
+    createSection1ImageLayer(-4, 'assets/images/groceryshelf2.png', 0.6, 4, 'groceryshelf2', 0);
     //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', true, 'https://example.com/oranges');
-    createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang');
-    createSection1ImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront');
+    //createSection1ImageLayer(-3, 'assets/images/groceryorang.png', 0.8, 2, 'groceryorang', 0);
+    //  createSection1ImageLayer(-2, 'assets/images/groceryfront.png', 1.0, 1, 'groceryfront', -10);
 
-    // Add clickable objects in section 1
+
     createSection1ClickableObject(
-        'assets/images/kimchi-jar.png',
-        { x: 1.5, y: 0, z: -1.8 },
-        { width: 0.8, height: 1.2 },
-        0.7,
-        'https://example.com/kimchi',
-        'kimchi-jar',
+
+        'assets/images/greenonion.png',
+        { x: -3.5, y: -1.2, z: 1.61 },
+        { width: 1.5, height: 1.5 },
+        2,
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         3
+    );
+
+    createSection1ClickableObject(
+
+        'assets/images/soysaucebottle.png',
+        { x: 2.2, y: 0.2, z: 0 },
+        { width: 2, height: 2 },
+        0.01,
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        0.01
+    );
+
+    // createSection1ClickableObject(
+
+    //     'assets/images/wontonwrapper.png',
+    //     { x: 3.2, y: -0.2, z: 2 },
+    //     { width: 0.5, height: 0.5 },
+    //     0,
+    //     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    //     0
+    // ); //problem with wonton wrapper panning
+
+
+
+    createSection1NonClickableObject(
+
+        'assets/images/groceryfront.png',
+        { x: 2.1, y: -1.5, z: 0.01 },
+        { width: 6, height: 6 },
+        0.7,
+        0
+    );
+
+    createSection1NonClickableObject(
+        'assets/images/lefttable.png',
+        { x: -6, y: -1.2, z: 1.5 },
+        { width: 5, height: 5 },
+        0.7,
+        0
+    );
+
+
+    createSection1NonClickableObject(
+        'assets/images/leftbox.png',
+        { x: -5, y: -1.6, z: 1.6 },
+        { width: 5, height: 3.5 },
+        0.7,
+        0
+    );
+
+    createSection1NonClickableObject(
+        'assets/images/groceryorang.png',
+        { x: -4.5, y: 0, z: -0.3 },
+        { width: 7, height: 5 },
+        0.7,
+        0
+    );
+
+
+
+    createSection1NonClickableObject(
+        'assets/images/orang2.png',
+        { x: -10, y: 0, z: -1 },
+        { width: 7, height: 5 },
+        0.7,
+        0
+    );
+
+    createSection1NonClickableObject(
+        'assets/images/rightshelf.png',
+        {
+            x: 5, y: -0.1, z: 1.5
+
+        },
+        { width: 7, height: 8 },
+        0.7,
+        0
     );
 }
 
@@ -889,8 +1240,8 @@ function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
     textureLoader.load(imagePath, (texture) => {
         const size = calculateFullscreenSize(zPosition);
 
-        const geometry = new THREE.PlaneGeometry(size.width, size.height);
-        const material = new THREE.MeshBasicMaterial({
+        const geometry = new THREE.PlaneGeometry(size.width * 1.3, size.height * 1.1);
+        const material = new THREE.MeshStandardMaterial({
             map: texture,
             transparent: true,
             side: THREE.DoubleSide
@@ -963,16 +1314,32 @@ function createSection2ClickableObject(imagePath, position, size, url, name = ''
 
 function createSection2() {
     // Create all section 2 layers
-    createSection2ImageLayer(-6, 'assets/images/groceryfloor.png', 0.2, 'section2-background');
-    createSection2ImageLayer(-4, 'assets/images/section2-midground.png', 0.6, 'section2-midground');
-    createSection2ImageLayer(-2, 'assets/images/section2-foreground.png', 1.0, 'section2-foreground');
+    createSection2ImageLayer(-7, 'assets/images/table.png', 0.2, 'section2-background');
+    // createSection2ImageLayer(-4, 'assets/images/section2-midground.png', 0.6, 'section2-midground');
+    // createSection2ImageLayer(-2, 'assets/images/section2-foreground.png', 1.0, 'section2-foreground');
 
-    loadInteractiveModel();
+    loadInteractiveModel(); //fix panning issue
+
+    // Add animated bowl
+    createAnimatedBowl({ x: 0, y: 5, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
+    //TO DO: change th efuckass size of the physical image so the frame is no so fat. thse imgse also need to change accrdin to zoom in
+    // Add animated tea - positioned to the right of the bowl
+    createAnimatedTea({ x: -5.5, y: 7, z: -0.9 }, { width: 4, height: 4 });
+    createAnimatedSoySauce({ x: 3.8, y: 3, z: 1.1 }, { width: 2.5, height: 2 });
+
+    // Add animated spring rolls - positioned to the right of the soy sauce
+    createAnimatedSpringRolls({ x: 5, y: 8.5, z: -0.1 }, { width: 4, height: 6.7 });
+    // Load bowl animation frames
+    loadBowlAnimation();
+    loadTeaAnimation();
+    loadSoySauceAnimation();
+    loadSpringRollsAnimation();
 
 
 
 
-    // Add clickable objects in section 2
+
+    // Add clickable object, use this for fortune cookie
     createSection2ClickableObject(
         'assets/images/section2-button.png',
         { x: 0, y: 0, z: -1.5 },
@@ -1080,6 +1447,551 @@ function checkZoomedState() {
 }
 
 
+// Function to load bowl animation frames
+function loadBowlAnimation() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load all three frames
+    for (let i = 1; i <= bowlAnimation.frameCount; i++) {
+        const framePath = `assets/images/bowl${i}.png`;
+        console.log(`Attempting to load bowl frame: ${framePath}`);
+
+        textureLoader.load(framePath, (texture) => {
+            bowlAnimation.frames[i - 1] = texture;
+            bowlAnimation.framesLoaded++;
+            console.log(`Loaded bowl frame ${i}, total loaded: ${bowlAnimation.framesLoaded}/${bowlAnimation.frameCount}`);
+
+            // If this is the first frame, make sure it's applied to the bowl
+            if (i === 1 && sectionObjects.section2) {
+                // Find the bowl in the scene
+                sectionObjects.section2.parallaxLayers.forEach(layer => {
+                    if (layer.userData.name === 'bowl') {
+                        layer.material.map = texture;
+                        layer.material.needsUpdate = true;
+                    }
+                });
+            }
+        }, undefined, (err) => {
+            console.error(`Error loading ${framePath}:`, err);
+        });
+    }
+}
+
+// Define variables outside the function
+let lastBowlFrameTime = 0;
+const FRAME_DELAY = 300; // 2 fps or whatever aha greatest graphics
+
+// Function to update bowl animation
+function updateBowlAnimation(timestamp) {
+    // Make sure timestamp is a number
+    timestamp = timestamp || performance.now();
+
+    // Only animate if we have at least 2 frames loaded
+    if (bowlAnimation.framesLoaded < 2) return;
+
+    // Check if enough time has passed (hardcoded delay)
+    const elapsedTime = timestamp - lastBowlFrameTime;
+    if (elapsedTime < FRAME_DELAY) return;
+
+    // Update the time tracker
+    lastBowlFrameTime = timestamp;
+
+    // Only animate when in section 2
+    if (currentSection < 0.5 || currentSection >= 1.5) return;
+
+    // Log for debugging
+
+
+    // Increment frame index
+    bowlAnimation.currentFrame = (bowlAnimation.currentFrame + 1) % bowlAnimation.frameCount;
+
+    // Find the bowl mesh in section2.parallaxLayers
+    let bowlFound = false;
+    if (sectionObjects.section2 && sectionObjects.section2.parallaxLayers) {
+        sectionObjects.section2.parallaxLayers.forEach(layer => {
+            if (layer.userData && layer.userData.name === 'bowl' && layer.userData.isAnimated) {
+                bowlFound = true;
+                // Update the texture
+                const newTexture = bowlAnimation.frames[bowlAnimation.currentFrame];
+                if (newTexture) {
+                    layer.material.map = newTexture;
+                    layer.material.needsUpdate = true;
+                } else {
+                    console.log(`No texture available for frame ${bowlAnimation.currentFrame}`);
+                }
+            }
+        });
+    }
+
+    if (!bowlFound) {
+        console.log("Bowl not found in section2.parallaxLayers");
+    }
+}
+
+// Function to create the animated bowl object
+function createAnimatedBowl(position, size) {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load the first frame to start with
+    textureLoader.load('assets/images/bowl1.png', (texture) => {
+        console.log("Successfully loaded first bowl frame");
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: 'bowl',
+            isAnimated: true,
+            isClickable: bowlAnimation.isClickable,
+            imagePath: bowlAnimation.imagePath,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+
+        if (bowlAnimation.isClickable) {
+            sectionObjects.section2.clickableObjects.push(plane);
+        }
+
+        console.log("Created animated bowl");
+    }, undefined, (error) => {
+        console.error("Error loading first bowl frame:", error);
+    });
+}
+
+// Function to display a local image in a modal overlay
+function displayLocalImage(imagePath) {
+    // Create a modal to display the image
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <img src="${imagePath}" alt="Bowl Image">
+        </div>
+    `;
+
+    // Add styles for the modal
+    const style = document.createElement('style');
+    style.textContent = `
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            position: relative;
+            background-color: #222;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 80%;
+            max-height: 80%;
+        }
+        .modal-content img {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            border-radius: 5px;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover {
+            color: #ccc;
+        }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(modal);
+
+    // Add close functionality
+    const closeButton = modal.querySelector('.close-button');
+    closeButton.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    // Also close when clicking outside the image
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// Function to load tea animation frames
+function loadTeaAnimation() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load all four frames
+    for (let i = 1; i <= teaAnimation.frameCount; i++) {
+        const framePath = `assets/images/tea${i}.png`;
+        console.log(`Attempting to load tea frame: ${framePath}`);
+
+        textureLoader.load(framePath, (texture) => {
+            teaAnimation.frames[i - 1] = texture;
+            teaAnimation.framesLoaded++;
+            console.log(`Loaded tea frame ${i}, total loaded: ${teaAnimation.framesLoaded}/${teaAnimation.frameCount}`);
+
+            // If this is the first frame, make sure it's applied to the tea
+            if (i === 1 && sectionObjects.section2) {
+                // Find the tea in the scene
+                sectionObjects.section2.parallaxLayers.forEach(layer => {
+                    if (layer.userData.name === 'tea') {
+                        layer.material.map = texture;
+                        layer.material.needsUpdate = true;
+                    }
+                });
+            }
+        }, undefined, (err) => {
+            console.error(`Error loading ${framePath}:`, err);
+        });
+    }
+}
+
+// Function to create the animated tea object
+function createAnimatedTea(position, size) {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load the first frame to start with
+    textureLoader.load('assets/images/tea1.png', (texture) => {
+        console.log("Successfully loaded first tea frame");
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // When setting up userData, add a flag to indicate it shouldn't respond to panning
+        plane.userData = {
+            section: 'section2',
+            name: 'tea',
+            isAnimated: true,
+            isClickable: teaAnimation.isClickable,
+            imagePath: teaAnimation.imagePath,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+            // noPanning: true  // Add this flag to indicate it shouldn't pan
+        };
+
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+
+        if (teaAnimation.isClickable) {
+            sectionObjects.section2.clickableObjects.push(plane);
+        }
+
+        console.log("Created animated tea");
+    }, undefined, (error) => {
+        console.error("Error loading first tea frame:", error);
+    });
+}
+
+// Function to update tea animation
+function updateTeaAnimation(timestamp) {
+    // Only animate if we have all frames loaded
+    if (teaAnimation.framesLoaded < teaAnimation.frameCount) return;
+
+    // Only animate when in section 2
+    if (currentSection < 0.5 || currentSection >= 1.5) return;
+
+    // Check if it's time for a transition (every transitionDuration seconds)
+    if (timestamp - teaAnimation.lastTransitionTime < teaAnimation.transitionDuration * 100) return; //TODO: LAST PARAM CONTROLS FRAMERATE
+
+    // Time to change frames
+    teaAnimation.lastTransitionTime = timestamp;
+    teaAnimation.currentFrame = (teaAnimation.currentFrame + 1) % teaAnimation.frameCount;
+
+    // Find the tea and update its texture
+    sectionObjects.section2.parallaxLayers.forEach(layer => {
+        if (layer.userData.name === 'tea' && layer.userData.isAnimated) {
+            layer.material.map = teaAnimation.frames[teaAnimation.currentFrame];
+            layer.material.needsUpdate = true;
+        }
+    });
+}
+
+
+// Function to load soy sauce animation frames
+function loadSoySauceAnimation() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load all three frames
+    for (let i = 1; i <= soySauceAnimation.frameCount; i++) {
+        const framePath = `assets/images/soysauce${i}.png`;
+        console.log(`Attempting to load soy sauce frame: ${framePath}`);
+
+        textureLoader.load(framePath, (texture) => {
+            soySauceAnimation.frames[i - 1] = texture;
+            soySauceAnimation.framesLoaded++;
+            console.log(`Loaded soy sauce frame ${i}, total loaded: ${soySauceAnimation.framesLoaded}/${soySauceAnimation.frameCount}`);
+
+            // If this is the first frame, make sure it's applied to the soy sauce
+            if (i === 1 && sectionObjects.section2) {
+                // Find the soy sauce in the scene
+                sectionObjects.section2.parallaxLayers.forEach(layer => {
+                    if (layer.userData.name === 'soysauce') {
+                        layer.material.map = texture;
+                        layer.material.needsUpdate = true;
+                    }
+                });
+            }
+        }, undefined, (err) => {
+            console.error(`Error loading ${framePath}:`, err);
+        });
+    }
+}
+// Function to create the animated soy sauce object
+function createAnimatedSoySauce(position, size) {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load the first frame to start with
+    textureLoader.load('assets/images/soysauce1.png', (texture) => {
+        console.log("Successfully loaded first soy sauce frame");
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2 - use the exact same logic as in createAnimatedBowl
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata - make sure it exactly matches the bowl's userData structure
+        plane.userData = {
+            section: 'section2',
+            name: 'soysauce',
+            isAnimated: true,
+            isClickable: soySauceAnimation.isClickable,
+            imagePath: soySauceAnimation.imagePath,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+            parallaxSpeed: position.parallaxSpeed || 0.6 // Make sure to provide this value
+        };
+
+        // Make sure storeLayerOriginalPosition is called with the exact same parameters as for the bowl
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Make sure it's added to the same arrays as the bowl
+        sectionObjects.section2.parallaxLayers.push(plane);
+
+        if (soySauceAnimation.isClickable) {
+            sectionObjects.section2.clickableObjects.push(plane);
+        }
+
+        console.log("Created animated soy sauce");
+    });
+}
+
+// Function to update soy sauce animation
+function updateSoySauceAnimation(timestamp) {
+    // Only animate if we have all frames loaded
+    if (soySauceAnimation.framesLoaded < soySauceAnimation.frameCount) return;
+
+    // Only animate when in section 2
+    if (currentSection < 0.5 || currentSection >= 1.5) return;
+
+    // Check if it's time for a transition (every transitionDuration seconds)
+    if (timestamp - soySauceAnimation.lastTransitionTime < soySauceAnimation.transitionDuration * 1000) return;
+
+    // Time to change frames
+    soySauceAnimation.lastTransitionTime = timestamp;
+    soySauceAnimation.currentFrame = (soySauceAnimation.currentFrame + 1) % soySauceAnimation.frameCount;
+
+    // Find the soy sauce and update its texture
+    sectionObjects.section2.parallaxLayers.forEach(layer => {
+        if (layer.userData.name === 'soysauce' && layer.userData.isAnimated) {
+            layer.material.map = soySauceAnimation.frames[soySauceAnimation.currentFrame];
+            layer.material.needsUpdate = true;
+        }
+    });
+}
+// Function to load spring rolls animation frames
+function loadSpringRollsAnimation() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load all three frames
+    for (let i = 1; i <= springRollsAnimation.frameCount; i++) {
+        const framePath = `assets/images/springrolls${i}.png`;
+        console.log(`Attempting to load spring rolls frame: ${framePath}`);
+
+        textureLoader.load(framePath, (texture) => {
+            springRollsAnimation.frames[i - 1] = texture;
+            springRollsAnimation.framesLoaded++;
+            console.log(`Loaded spring rolls frame ${i}, total loaded: ${springRollsAnimation.framesLoaded}/${springRollsAnimation.frameCount}`);
+
+            // If this is the first frame, make sure it's applied to the spring rolls
+            if (i === 1 && sectionObjects.section2) {
+                // Find the spring rolls in the scene
+                sectionObjects.section2.parallaxLayers.forEach(layer => {
+                    if (layer.userData.name === 'springrolls') {
+                        layer.material.map = texture;
+                        layer.material.needsUpdate = true;
+                    }
+                });
+            }
+        }, undefined, (err) => {
+            console.error(`Error loading ${framePath}:`, err);
+        });
+    }
+}
+
+// Function to create the animated spring rolls object
+function createAnimatedSpringRolls(position, size) {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load the first frame to start with
+    textureLoader.load('assets/images/springrolls1.png', (texture) => {
+        console.log("Successfully loaded first spring rolls frame");
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: 'springrolls',
+            isAnimated: true,
+            isClickable: springRollsAnimation.isClickable,
+            imagePath: springRollsAnimation.imagePath,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+
+        if (springRollsAnimation.isClickable) {
+            sectionObjects.section2.clickableObjects.push(plane);
+        }
+
+        console.log("Created animated spring rolls");
+    }, undefined, (error) => {
+        console.error("Error loading first spring rolls frame:", error);
+    });
+}
+
+// Function to update spring rolls animation
+function updateSpringRollsAnimation(timestamp) {
+    // Only animate if we have all frames loaded
+    if (springRollsAnimation.framesLoaded < springRollsAnimation.frameCount) return;
+
+    // Only animate when in section 2
+    if (currentSection < 0.5 || currentSection >= 1.5) return;
+
+    // Check if it's time for a transition (every transitionDuration seconds)
+    if (timestamp - springRollsAnimation.lastTransitionTime < springRollsAnimation.transitionDuration * 1000) return;
+
+    // Time to change frames
+    springRollsAnimation.lastTransitionTime = timestamp;
+    springRollsAnimation.currentFrame = (springRollsAnimation.currentFrame + 1) % springRollsAnimation.frameCount;
+
+    // Find the spring rolls and update its texture
+    sectionObjects.section2.parallaxLayers.forEach(layer => {
+        if (layer.userData.name === 'springrolls' && layer.userData.isAnimated) {
+            layer.material.map = springRollsAnimation.frames[springRollsAnimation.currentFrame];
+            layer.material.needsUpdate = true;
+        }
+    });
+}
+
+
+
 // ============================================================
 // SECTION 3: DESK VIEW WITH INTERACTIVE OBJECTS
 // ============================================================
@@ -1106,7 +2018,7 @@ function createSection3ImageLayer(zPosition, imagePath, speed, name = '') {
         plane.position.z = zPosition;
 
         // Position for section 3 (starts two screen heights down)
-        const sectionSpacing = window.innerHeight / 70; //CHANGE THIS VALUE FOR STLYLISTIC PURPISES
+        const sectionSpacing = window.innerHeight / 70; //CHANGE THIS VALUE FOR STLYLISTIC PURPISES, THIS CONTROLS SPACING
         plane.position.y = -sectionSpacing * 2;
 
         // Store metadata
@@ -1467,7 +2379,42 @@ function handleClickOutside(e) {
         zoomOut();
     }
 }
-// Update the mouse click handler to handle zoomable objects
+// // Update the mouse click handler to handle zoomable objects
+// function onMouseClick(event) {
+//     // Update the picking ray with the camera and mouse position
+//     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+//     const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+//     raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+//     // Get all clickable objects from all sections
+//     const allClickableObjects = [];
+//     Object.values(sectionObjects).forEach(section => {
+//         if (section.clickableObjects) {
+//             allClickableObjects.push(...section.clickableObjects);
+//         }
+//     });
+
+//     // Calculate objects intersecting the picking ray
+//     const intersects = raycaster.intersectObjects(allClickableObjects);
+
+//     // Handle clicked object
+//     if (intersects.length > 0) {
+//         const clickedObject = intersects[0].object;
+
+//         if (clickedObject.userData.isZoomable && currentSection >= 1.5) {
+//             // Handle zoom action
+//             handleZoomableObjectClick(clickedObject);
+//         } else if (clickedObject.userData.url) {
+//             // Handle URL action
+//             window.open(clickedObject.userData.url, '_blank');
+//         }
+
+//         console.log(`Clicked on ${clickedObject.userData.name}`);
+//     }
+// }
+
+// Modify the onMouseClick function to handle local image display
 function onMouseClick(event) {
     // Update the picking ray with the camera and mouse position
     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -1490,18 +2437,21 @@ function onMouseClick(event) {
     if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
 
+        // Handle different types of clickable objects
         if (clickedObject.userData.isZoomable && currentSection >= 1.5) {
-            // Handle zoom action
+            // Handle zoom action for section 3 objects
             handleZoomableObjectClick(clickedObject);
         } else if (clickedObject.userData.url) {
-            // Handle URL action
+            // Handle URL action (for objects with URLs)
             window.open(clickedObject.userData.url, '_blank');
+        } else if (clickedObject.userData.imagePath) {
+            // Handle local image display
+            displayLocalImage(clickedObject.userData.imagePath);
         }
 
         console.log(`Clicked on ${clickedObject.userData.name}`);
     }
 }
-
 // Create section 3
 function createSection3() {
     console.log("Creating section 3...");
@@ -1678,63 +2628,64 @@ function triggerThumbsDownAnimation() {
     }, 300);
 }
 
-// Mouse interaction handlers
+// Update your mouse move handler to check for isClickable flag
 function onMouseMove(event) {
+    // Calculate mouse position in normalized device coordinates
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // Skip hover effects if we're in zoomed mode
     if (isZoomedIn) return;
 
+    // Update the picking ray
+    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
 
-
-    if (!isDragging) return;
-
-    // When applying hover scaling:
-    allClickableObjects.forEach(obj => {
-        // Skip scale changes if we're zoomed in
-        if (isZoomedIn && obj === currentZoomedObject) return;
-
-        if (obj.userData.isHovered) {
-            // Smoothly scale up
-            obj.scale.lerp(obj.userData.hoverScale, 0.1);
-        } else {
-            // Smoothly scale down to original
-            obj.scale.lerp(obj.userData.originalScale, 0.1);
+    // Get all clickable objects
+    const allClickableObjects = [];
+    Object.values(sectionObjects).forEach(section => {
+        if (section.clickableObjects) {
+            allClickableObjects.push(...section.clickableObjects);
         }
     });
 
-    const deltaMove = {
-        x: event.clientX - previousMousePosition.x,
-        y: event.clientY - previousMousePosition.y
-    };
+    // Calculate objects intersecting the picking ray
+    const intersects = raycaster.intersectObjects(allClickableObjects);
 
-    // Update model rotation based on mouse movement
-    if (modelContainer) {
-        // Update rotation values
-        modelRotation.y += deltaMove.x * 0.01;
-        modelRotation.x += deltaMove.y * 0.01;
+    // Reset hover states for all objects
+    allClickableObjects.forEach(obj => {
+        obj.userData.isHovered = false;
+    });
 
-        // Apply rotation around the model's center, not its origin
-        // First, save the current position
-        const currentPosition = modelContainer.position.clone();
+    // Set default cursor
+    document.body.style.cursor = 'auto';
 
-        // Reset rotation
-        modelContainer.rotation.set(0, 0, 0);
+    // Handle hover state for the first (closest) intersected object
+    if (intersects.length > 0) {
+        const hoveredObject = intersects[0].object;
 
-        // Rotate around center axes
-        modelContainer.rotateY(modelRotation.y);  // Rotate around Y axis
+        // Only set hover state and change cursor if object is marked as clickable
+        if (hoveredObject.userData.isClickable === true) {
+            hoveredObject.userData.isHovered = true;
 
-        // Limit and apply X rotation
-        const limitedXRotation = Math.max(Math.min(modelRotation.x, Math.PI / 4), -Math.PI / 4);
-        modelContainer.rotateX(limitedXRotation);  // Rotate around X axis
-
-        // Ensure position doesn't change
-        modelContainer.position.copy(currentPosition);
+            // Change cursor to pointer only for clickable objects
+            document.body.style.cursor = 'pointer';
+        }
     }
 
-    previousMousePosition = {
-        x: event.clientX,
-        y: event.clientY
-    };
+    // Apply hover effects (scaling, etc.)
+    allClickableObjects.forEach(obj => {
+        // Only apply hover effects to objects marked as clickable
+        if (obj.userData.isClickable === true) {
+            if (obj.userData.isHovered) {
+                // Smoothly scale up
+                obj.scale.lerp(obj.userData.hoverScale, 0.1);
+            } else {
+                // Smoothly scale down to original
+                obj.scale.lerp(obj.userData.originalScale, 0.1);
+            }
+        }
+    });
 }
-
 
 // ============================================================
 // ANIMATION AND RENDERING
@@ -1746,6 +2697,12 @@ function animate(timestamp) {
 
     // Update animation frames
     updateAnimationFrame(timestamp);
+    updateBowlAnimation();
+    updateTeaAnimation(timestamp);
+    updateSoySauceAnimation(timestamp);
+    updateSpringRollsAnimation(timestamp);
+
+
 
     processPanning();
 
@@ -1788,7 +2745,7 @@ function animate(timestamp) {
                     Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
 
                 // Update the target Y position to match our new higher position
-                const targetY = calculateFullscreenSize(-1.5).height * 0.2;
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2;
                 normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
             }
         }
@@ -1808,11 +2765,7 @@ function animate(timestamp) {
             }
         });
 
-        // Update groceryfront clipping plane if it exists
-        if (groceryFrontLayer) {
-            const normalizedScroll = scrollY / 2;
-            updateClipPlane(groceryFrontLayer, normalizedScroll);
-        }
+
     }
 
     // Add smooth hover transitions for clickable objects
@@ -2051,7 +3004,10 @@ function createScene() {
     createSection1();
     createSection2();
     createSection3();
-    // Section 3 would be implemented similarly
+
+    const axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
+
 
     console.log("All sections created:",
         "Section1:", sectionObjects.section1.parallaxLayers.length,
