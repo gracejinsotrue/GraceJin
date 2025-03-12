@@ -104,7 +104,30 @@ let normalAnimationPlane = null;
 let thumbsUpAnimationPlane = null;
 let thumbsDownAnimationPlane = null;
 
-
+// 1. Update the switchableImages object structure
+const switchableImages = {
+    tangerine: {
+        currentImageIndex: 0,
+        imagePaths: [
+            'assets/images/tangerine1.png',
+            'assets/images/tangerine2.png',
+            'assets/images/tangerine3.png' // You can add as many paths as needed
+        ],
+        textures: [] // This will store the preloaded textures
+    }
+    // // Example of another item with multiple images
+    // bowl: {
+    //     currentImageIndex: 0,
+    //     imagePaths: [
+    //         'assets/images/bowl1.png',
+    //         'assets/images/bowl2.png',
+    //         'assets/images/bowl3.png',
+    //         'assets/images/bowl4.png'
+    //     ],
+    //     textures: []
+    // }
+    // You can add more switchable image objects here
+};
 
 // Animation and frame state
 const animationState = {
@@ -328,7 +351,7 @@ function createStaticText2() {
 
     fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
         // Create text geometry with larger size
-        const textGeometry = new THREE.TextGeometry('Cornell CS + AI \'27 ', {
+        const textGeometry = new THREE.TextGeometry('Cornell  + AI \'27 ', {
             font: font,
             size: 0.5,
             height: 0.1,
@@ -370,7 +393,7 @@ function createAnimatedText() {
         scene.add(textMesh);
 
         // Array of words to cycle through
-        const words = ["Hi google people! This site \nwill be completely updated \nwithin 24-48 hours from now! \nHad a personal issue, \nPLEASE come back to check!!!", "Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
+        const words = ["Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
             "Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor.", "Try looking around!"];
         let wordIndex = 0;
         let currentText = '';
@@ -1887,6 +1910,236 @@ function createSection2ClickableObject(imagePath, position, size, url, name = ''
     });
 }
 
+// Function to create a switchable image in section 2
+function createSection2SwitchableImage(position, size, name) {
+    if (!switchableImages[name]) {
+        console.error(`No switchable image configuration found for: ${name}`);
+        return;
+    }
+
+    const imageConfig = switchableImages[name];
+    const initialPath = imageConfig.imagePaths.default;
+
+    const textureLoader = new THREE.TextureLoader();
+
+    textureLoader.load(initialPath, (texture) => {
+        console.log(`Successfully loaded initial image for ${name}`);
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: name,
+            isSwitchable: true,  // Flag to identify switchable images
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+            isClickable: true
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+        sectionObjects.section2.clickableObjects.push(plane);
+
+        console.log(`Created switchable image: ${name}`);
+
+        // Preload the alternate image
+        textureLoader.load(imageConfig.imagePaths.alternate, (altTexture) => {
+            // Store the textures in the switchableImages object for quick access
+            switchableImages[name].textures = {
+                default: texture,
+                alternate: altTexture
+            };
+        });
+    });
+}
+
+
+// 2. Updated switchImage function to cycle through multiple images
+function switchImage(objectName) {
+    if (!switchableImages[objectName]) {
+        console.error(`Attempted to switch non-existent image: ${objectName}`);
+        return;
+    }
+
+    const imageConfig = switchableImages[objectName];
+
+    // Advance to the next image in the sequence
+    imageConfig.currentImageIndex = (imageConfig.currentImageIndex + 1) % imageConfig.imagePaths.length;
+
+    console.log(`Switching ${objectName} to image index: ${imageConfig.currentImageIndex}`);
+
+    // Find the object in the scene
+    let found = false;
+    sectionObjects.section2.parallaxLayers.forEach(layer => {
+        if (layer.userData.name === objectName && layer.userData.isSwitchable) {
+            found = true;
+
+            // Use the preloaded textures if available
+            if (imageConfig.textures && imageConfig.textures.length > 0) {
+                const newTexture = imageConfig.textures[imageConfig.currentImageIndex];
+
+                if (newTexture) {
+                    layer.material.map = newTexture;
+                    layer.material.needsUpdate = true;
+                    console.log(`Switched ${objectName} to texture at index: ${imageConfig.currentImageIndex}`);
+                } else {
+                    console.warn(`No preloaded texture found for ${objectName} at index ${imageConfig.currentImageIndex}`);
+                }
+            } else {
+                // Fallback to loading the texture if not preloaded
+                const texturePath = imageConfig.imagePaths[imageConfig.currentImageIndex];
+
+                new THREE.TextureLoader().load(texturePath, (texture) => {
+                    layer.material.map = texture;
+                    layer.material.needsUpdate = true;
+                    console.log(`Loaded and switched ${objectName} to image at path: ${texturePath}`);
+                });
+            }
+        }
+    });
+
+    if (!found) {
+        console.error(`Could not find object to switch: ${objectName}`);
+    }
+}
+
+
+// 3. Enhanced function to preload all textures for smoother switching
+function preloadSwitchableImageTextures() {
+    const textureLoader = new THREE.TextureLoader();
+
+    Object.keys(switchableImages).forEach(objName => {
+        const imageConfig = switchableImages[objName];
+
+        // Clear any existing textures
+        imageConfig.textures = [];
+
+        // Preload all textures for this object
+        imageConfig.imagePaths.forEach((path, index) => {
+            console.log(`Preloading texture for ${objName}, path: ${path}`);
+
+            textureLoader.load(path, (texture) => {
+                imageConfig.textures[index] = texture;
+                console.log(`Preloaded texture ${index + 1}/${imageConfig.imagePaths.length} for ${objName}`);
+            });
+        });
+    });
+}
+
+
+
+// 4. Enhanced createSection2SwitchableImage function to work with the new system
+function createSection2SwitchableImage(position, size, name) {
+    if (!switchableImages[name]) {
+        console.error(`No switchable image configuration found for: ${name}`);
+        return;
+    }
+
+    const imageConfig = switchableImages[name];
+    const initialPath = imageConfig.imagePaths[0]; // Always start with the first image
+
+    const textureLoader = new THREE.TextureLoader();
+
+    textureLoader.load(initialPath, (texture) => {
+        console.log(`Successfully loaded initial image for ${name}`);
+
+        // Store the loaded texture
+        if (!imageConfig.textures[0]) {
+            imageConfig.textures[0] = texture;
+        }
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: name,
+            isSwitchable: true,  // Flag to identify switchable images
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+            isClickable: true
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+        sectionObjects.section2.clickableObjects.push(plane);
+
+        console.log(`Created switchable image: ${name}`);
+
+        // Preload all other images for this switchable image
+        for (let i = 1; i < imageConfig.imagePaths.length; i++) {
+            textureLoader.load(imageConfig.imagePaths[i], (altTexture) => {
+                imageConfig.textures[i] = altTexture;
+                console.log(`Preloaded alternative texture ${i} for ${name}`);
+            });
+        }
+    });
+}
+// Call this in createSection2() to add your tangerine
+function addSwitchableImagesToSection2() {
+    // Add the tangerine at an appropriate position
+    createSection2SwitchableImage(
+        { x: -5, y: 4, z: -0.5 },  // Position
+        { width: 3, height: 3 },     // Size
+        'tangerine'                   // Name (must match entry in switchableImages)
+    );
+}
+
+// 5. Call this during initialization to preload all textures
+function initSwitchableImages() {
+    preloadSwitchableImageTextures();
+
+    // Call this in your scene setup
+    // Make sure to add this call to createScene() or another initialization function
+    console.log("Initialized enhanced switchable images system");
+}
 function createSection2() {
     // Create all section 2 layers
     createSection2ImageLayer(-7, 'assets/images/table.png', 0.2, 'section2-background');
@@ -1908,6 +2161,9 @@ function createSection2() {
     loadTeaAnimation();
     loadSoySauceAnimation();
     loadSpringRollsAnimation();
+
+    addSwitchableImagesToSection2();
+    initSwitchableImages();
 
 
 
@@ -2578,6 +2834,18 @@ function initializeEnhancedProjectSystem() {
 
     console.log("Enhanced project description system initialized");
 }
+
+// Function to update mouse click handler
+function updateMouseClickHandler() {
+    // Remove the old event listener
+    window.removeEventListener('click', onMouseClick);
+
+    // Add the updated event listener
+    window.addEventListener('click', onMouseClick);
+
+    console.log("Mouse click handler updated to support switchable images");
+}
+
 function formatDescription(text) {
     // Split by double newlines (paragraphs)
     const paragraphs = text.split('\n\n');
@@ -3667,7 +3935,7 @@ function handleClickOutside(e) {
 }
 
 
-// Modify the onMouseClick function to handle local image display
+// Updated onMouseClick function to handle switchable images
 function onMouseClick(event) {
     // Update the picking ray with the camera and mouse position
     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -3689,6 +3957,15 @@ function onMouseClick(event) {
     // Handle clicked object
     if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
+        console.log("Clicked object userData:", clickedObject.userData);
+
+        // Check if it's a switchable image
+        if (clickedObject.userData.isSwitchable && clickedObject.userData.name &&
+            switchableImages[clickedObject.userData.name]) {
+            console.log(`Switching image: ${clickedObject.userData.name}`);
+            switchImage(clickedObject.userData.name);
+            return; // Stop here to prevent other actions
+        }
 
         // Handle different types of clickable objects
         if (clickedObject.userData.isZoomable && currentSection >= 1.5) {
@@ -3709,6 +3986,7 @@ function onMouseClick(event) {
         console.log(`Clicked on ${clickedObject.userData.name}`);
     }
 }
+
 
 // Create section 3
 function createSection3() {
@@ -4343,6 +4621,7 @@ function createScene() {
     createSection2();
     createSection3();
     // enhanceSection3WithDrawableScreen()
+    updateMouseClickHandler();
 
 
 
