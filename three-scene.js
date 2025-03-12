@@ -200,11 +200,37 @@ const springRollsAnimation = {
 
 const projectDescriptions = {
     bowl: {
-        title: "This website!",
+        title: "This Website!",
         description: "I designed and programmed this to encapsulate who I am. This website, from the hand-drawn assets to the style of writing, is something that only I'd make. This was really fun to work with though! I am still adding new easter eggs and side quests if you check back at a later time! ",
         technologies: ["Javascript, Three.js, CSS, HTML"],
         image: "assets/images/bowl1.png",
-        link: ""
+        link: "https://grace-jin.vercel.app/"
+    },
+
+    springrolls: {
+        title: "Physics XR Models for Cornell's Physics Department",
+        description: "Building visualizations for EM Waves, Gaussian Surfaces, and multiple other models with Unity and C# to help students visualize otherwise invisible electromagnetism concepts. Built in collaboration with Cornell's Physics department, with 800+ plays.",
+        technologies: ["Unity", "C#"],
+        image: "assets/images/springrolls1.png",
+        link: "https://play.unity.com/en/games/f03d915a-8c42-4005-98c4-b00c0ef4da1b/gaussian-surface-simulation"
+    },
+    tea: {
+        title: "NeuroScent-MIT Reality Hack 2025 Smart Sensing Winner",
+        description: "Inspired by a reserach paper, I collaborated with a team of 5 to create Neuroscent, a system connecting VR brain-computer interfaces with olfactory displays to promote users’ mental well-being based on biofeedback. Used OpenBCI’s Galea ($30k) BCI VR Headset connected to Unity with a dynamic interactive environment based off of detected alpha brain waves. Basically, hands-free exploration in a Unity Enviornment that I designed and coded up from scratch :). Trying to turn this into a cross-university project right now!",
+        technologies: ["C#", "Unity", "OpenBCI software", "Blender", "Arduino"],
+        image: "assets/images/tea1.png",
+        link: "https://devpost.com/software/neuroscent"
+
+    },
+    soysauce:
+    {
+        title: "Good Old Soy Sauce",
+        description: "I just really like soy sauce.",
+        technologies: ["probably crack because it tastes so good"],
+        image: "assets/images/soysauce1.png",
+        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+
     }
 
     // springrolls: {
@@ -654,36 +680,6 @@ function updateModelVisibility() {
 }
 
 
-
-
-function setupPartialVisibility(plane, visiblePortion = 0.4) {
-    // Create a clipping plane that only shows the top portion
-    const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-
-    // Store the original plane parameters
-    plane.userData.clipPlane = clipPlane;
-    plane.userData.fullHeight = plane.geometry.parameters.height;
-    plane.userData.visiblePortion = visiblePortion;
-
-    // Enable clipping on the material
-    plane.material.clippingPlanes = [clipPlane];
-    plane.material.clipIntersection = false;
-
-    // Enable clipping in the renderer
-    renderer.localClippingEnabled = true;
-
-    // Set initial clipping position to show only the top portion
-    updateClipPlane(plane, 0);
-}
-
-function updateClipPlane(plane, scrollPosition) {
-    if (!plane || !plane.userData.clipPlane) return;
-
-    const clipOffset = plane.userData.fullHeight * (0.5 - plane.userData.visiblePortion / 2);
-    const revealAmount = scrollPosition * clipOffset;
-
-    plane.userData.clipPlane.constant = clipOffset - revealAmount;
-}
 
 // Update your event listeners in setupKeyboardControls function:
 function setupKeyboardControls() {
@@ -1912,7 +1908,6 @@ function createSection2() {
     loadTeaAnimation();
     loadSoySauceAnimation();
     loadSpringRollsAnimation();
-
 
 
 
