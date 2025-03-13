@@ -393,7 +393,7 @@ function createAnimatedText() {
         scene.add(textMesh);
 
         // Array of words to cycle through
-        const words = ["Passionionate about \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
+        const words = ["Passionionate about making software and \nconnecting with people \nthrough fun, immersive technology, \n coding, and design.", "I am a...",
             "Software Developer.", "Designer.", "Digital Artist.", "Content Creator.", "Cancer Survivor.", "Try looking around!"];
         let wordIndex = 0;
         let currentText = '';
