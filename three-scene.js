@@ -14,7 +14,7 @@ document.getElementById('container').appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional: for softer shadows
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xfff2cc, 1);
+const ambientLight = new THREE.AmbientLight(0xfff2cc, 1.2);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffc0cb, 1);
@@ -1978,7 +1978,7 @@ function createSection2SwitchableImage(position, size, name) {
 }
 
 
-// 2. Updated switchImage function to cycle through multiple images
+// Updated switchImage function to stop at the last image
 function switchImage(objectName) {
     if (!switchableImages[objectName]) {
         console.error(`Attempted to switch non-existent image: ${objectName}`);
@@ -1987,10 +1987,14 @@ function switchImage(objectName) {
 
     const imageConfig = switchableImages[objectName];
 
-    // Advance to the next image in the sequence
-    imageConfig.currentImageIndex = (imageConfig.currentImageIndex + 1) % imageConfig.imagePaths.length;
-
-    console.log(`Switching ${objectName} to image index: ${imageConfig.currentImageIndex}`);
+    // Advance to the next image, but only if not at the last one already
+    if (imageConfig.currentImageIndex < imageConfig.imagePaths.length - 1) {
+        imageConfig.currentImageIndex += 1;
+        console.log(`Switching ${objectName} to image index: ${imageConfig.currentImageIndex}`);
+    } else {
+        console.log(`${objectName} already at final image (index: ${imageConfig.currentImageIndex})`);
+        return; // Already at the last image, do nothing
+    }
 
     // Find the object in the scene
     let found = false;
@@ -2126,13 +2130,13 @@ function createSection2SwitchableImage(position, size, name) {
 function addSwitchableImagesToSection2() {
     // Add the tangerine at an appropriate position
     createSection2SwitchableImage(
-        { x: -5, y: 4, z: -0.5 },  // Position
-        { width: 3, height: 3 },     // Size
+        { x: 3.9, y: 4.8, z: 0.1 },  // Position
+        { width: 2.4, height: 3 },     // Size
         'tangerine'                   // Name (must match entry in switchableImages)
     );
 }
 
-// 5. Call this during initialization to preload all textures
+// 5. Call this during initialization to preload all texturefs
 function initSwitchableImages() {
     preloadSwitchableImageTextures();
 
