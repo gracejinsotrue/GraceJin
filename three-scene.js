@@ -24,7 +24,7 @@ directionalLight.castShadow = true;
 
 
 
-// Position the light to better illuminate your model
+// since z is at position 5
 directionalLight.position.set(-5, 5, 5);
 
 // Set up shadow properties
@@ -740,6 +740,41 @@ function setupKeyboardControls() {
     // Add a visual control panel with updated instructions
     addControlPanel();
 }
+
+// Function to update UI elements based on current section
+function updateUIElementsVisibility() {
+    const groceryListElement = document.getElementById('grocery-list');
+
+    if (!groceryListElement) {
+        console.warn("Grocery list element not found");
+        return;
+    }
+
+    // Show grocery list only in section 1 (when currentSection < 0.5)
+    if (currentSection < 0.5) {
+        groceryListElement.style.display = 'block';
+        groceryListElement.style.opacity = 1 - (currentSection * 2); // Fade out as we approach section 2
+    } else {
+        groceryListElement.style.display = 'none';
+    }
+
+    // You can add similar conditions for other UI elements that should be section-specific
+}
+
+// Also add CSS transition for smooth opacity changes
+function addUITransitions() {
+    const style = document.createElement('style');
+    style.textContent = `
+        #grocery-list {
+            transition: opacity 0.3s ease;
+        }
+        /* You can add transitions for other section-specific UI elements here */
+    `;
+    document.head.appendChild(style);
+}
+
+// Call this during initialization
+addUITransitions();
 
 
 // Function to zoom in for all sections
@@ -4615,6 +4650,14 @@ window.addEventListener('pointingDown', (event) => {
 // ============================================================
 function createScene() {
     setupKeyboardControls();
+
+    // Regular parallax scrolling effect once intro is complete
+    currentSection += (targetSection - currentSection) * 0.05;
+    camera.position.y = -currentSection * 10;
+
+    // Add this line to update UI elements based on section
+    updateUIElementsVisibility();
+
     // Create each section
     createSection1();
     createAnimatedText();
