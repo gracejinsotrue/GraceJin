@@ -1519,12 +1519,12 @@ function createAnimationPlanes() {
     window.addEventListener('resize', () => {
         const newFullSize = calculateFullscreenSize(zPosition);
         const newSize = {
-            width: newFullSize.width * 0.25,
+            width: newFullSize.width * 0.3,
             height: newFullSize.height * 0.85
         };
 
         const newPosition = new THREE.Vector3(
-            newSize.width * 0.3,
+            newSize.width * 0.35,
             newSize.height * 0.2,
             zPosition
         );
@@ -1543,8 +1543,8 @@ function createAnimationPlanes() {
 function preloadAnimationFrames() {
     const textureLoader = new THREE.TextureLoader();
     const totalNormalFrames = 5;
-    const totalThumbsUpFrames = 8;
-    const totalThumbsDownFrames = 8;
+    const totalThumbsUpFrames = 4;
+    const totalThumbsDownFrames = 3;
 
     let loadedFrames = 0;
     const totalFramesToLoad = totalNormalFrames + totalThumbsUpFrames + totalThumbsDownFrames;
@@ -4395,21 +4395,71 @@ function animate(timestamp) {
                 // Update the target Y position to match our new higher position
                 const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2.8; //TODO fuckass
                 normalAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
+                // Store the final position for reference in the else block
+                if (t === 1 || easedProgress === 1) {
+                    normalAnimationPlane.userData.finalY = targetY;
+                }
+            }
+        }
+        // Animate thumbs up animation plane intro
+        if (thumbsUpAnimationPlane) {
+            const planeProgress = Math.max(0, animationState.introProgress - 0.8); // Delay appearance
+
+            if (planeProgress > 0) {
+                // Elastic easing for bouncy effect
+                const t = Math.min(1, planeProgress / 0.2); // Complete over 20% of total time
+                const easedProgress = t === 0 ? 0 : t === 1 ? 1 :
+                    Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+
+                // Update the target Y position to match our new higher position
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2.8;
+                thumbsUpAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
+
+                // Store the final position for reference in the else block
+                if (t === 1 || easedProgress === 1) {
+                    thumbsUpAnimationPlane.userData.finalY = targetY;
+                }
+            }
+        }
+        // Animate thumbs down
+        if (thumbsDownAnimationPlane) {
+            const planeProgress = Math.max(0, animationState.introProgress - 0.8); // Delay appearance
+
+            if (planeProgress > 0) {
+                // Elastic easing for bouncy effect
+                const t = Math.min(1, planeProgress / 0.2); // Complete over 20% of total time
+                const easedProgress = t === 0 ? 0 : t === 1 ? 1 :
+                    Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+
+                // Update the target Y position to match our new higher position
+                const targetY = calculateFullscreenSize(-1.5).height * 0.2 - 2.8;
+                thumbsDownAnimationPlane.position.y = targetY - 5 * (1 - easedProgress);
+
+                // Store the final position for reference in the else block
+                if (t === 1 || easedProgress === 1) {
+                    thumbsDownAnimationPlane.userData.finalY = targetY;
+                }
             }
         }
     } else {
         // Regular parallax scrolling effect once intro is complete
         currentSection += (targetSection - currentSection) * 0.05;
-        camera.position.y = -currentSection * 10;
+
+        // Get the reference Y position from the normalAnimationPlane
+        const baseY = normalAnimationPlane && normalAnimationPlane.userData.finalY
+            ? normalAnimationPlane.userData.finalY
+            : calculateFullscreenSize(-1.5).height * 0.2 - 2.8; // Use same calculation as fallback
+
+        camera.position.y = -currentSection * 10 + baseY;
 
         // Parallax effect for section 1
         sectionObjects.section1.parallaxLayers.forEach(layer => {
             if (layer.userData.isClickable && layer.userData.originY !== undefined) {
                 // For clickable objects, move them relative to their original position
-                layer.position.y = layer.userData.originY + (currentSection * 10 * layer.userData.parallaxSpeed);
+                layer.position.y = layer.userData.originY + baseY + (currentSection * 10 * layer.userData.parallaxSpeed);
             } else {
                 // For regular layers, use the standard parallax
-                layer.position.y = currentSection * 10 * layer.userData.parallaxSpeed;
+                layer.position.y = baseY + (currentSection * 10 * layer.userData.parallaxSpeed);
             }
         });
 
