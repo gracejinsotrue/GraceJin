@@ -538,7 +538,7 @@ function loadInteractiveModel() {
 
     // Load the model
     loader.load(
-        'assets/fortunecookie.glb',
+        'assets/fortunecookie1.glb',
         function (gltf) {
             console.log('Model loaded successfully');
 
