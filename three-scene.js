@@ -504,7 +504,7 @@ function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
     modelContainer.scale.set(1, 1, 1);
-    modelContainer.position.set(-3, -window.innerHeight / 45 + 12, 1.5);
+    modelContainer.position.set(-3, -window.innerHeight / 45 + 11.5, 1.5);
     modelContainer.rotation.x = Math.PI / 2;
     modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
