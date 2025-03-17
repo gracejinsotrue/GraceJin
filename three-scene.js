@@ -2075,7 +2075,7 @@ function switchImage(objectName) {
 }
 
 
-// 3. Enhanced function to preload all textures for smoother switching
+// 3. Enhanced function to preload all textures for smoother switching lol
 function preloadSwitchableImageTextures() {
     const textureLoader = new THREE.TextureLoader();
 
