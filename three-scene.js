@@ -490,7 +490,7 @@ function createAnimatedText() {
         requestAnimationFrame(animateText);
     });
 }
-function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //should extra margin be in the param
+function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.2) { //should extra margin be in the param
     const fov = camera.fov * (Math.PI / 180);
     const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
     const visibleWidth = visibleHeight * camera.aspect;
@@ -500,7 +500,7 @@ function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //shou
     };
 }
 
-function calculateFullscreenSizeW(distanceFromCamera, extraMargin = 0.1, widthMultiplier = 1.0) {
+function calculateFullscreenSizeW(distanceFromCamera, extraMargin = 0.2, widthMultiplier = 1.1) {
     const fov = camera.fov * (Math.PI / 180);
     const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
     const visibleWidth = visibleHeight * camera.aspect;
@@ -1883,7 +1883,7 @@ function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
     textureLoader.load(imagePath, (texture) => {
         const size = calculateFullscreenSize(zPosition);
 
-        const geometry = new THREE.PlaneGeometry(size.width * 1.3, size.height * 1.1);
+        const geometry = new THREE.PlaneGeometry(size.width * 1.1, size.height * 1);
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             transparent: true,
@@ -2204,8 +2204,8 @@ function createSection2() {
     createAnimatedSoySauce({ x: 3.8, y: 3, z: 1.1 }, { width: 2.5, height: 2 });
 
     // Add animated spring rolls - positioned to the right of the soy sauce
-    createAnimatedSpringRolls({ x: 5, y: 8.5, z: -0.1 }, { width: 4, height: 6.7 });
-    createAnimatedNoodleChips({ x: -4.5, y: 6, z: 1.1 }, { width: 4, height: 4 });
+    createAnimatedSpringRolls({ x: 5, y: 6.5, z: -0.1 }, { width: 4, height: 4 });
+    createAnimatedNoodleChips({ x: -4, y: 5.5, z: 1.1 }, { width: 3, height: 3 });
     // Load bowl animation frames
     loadBowlAnimation();
     loadTeaAnimation();
@@ -3627,10 +3627,10 @@ function createSection3ImageLayer(zPosition, imagePath, speed, name = '') {
         });
 
         const plane = new THREE.Mesh(geometry, material);
-        plane.position.z = zPosition;
+        plane.position.z = zPosition - 0.5;
 
         // Position for section 3 (starts two screen heights down)
-        const sectionSpacing = window.innerHeight / 70; //CHANGE THIS VALUE FOR STLYLISTIC PURPISES, THIS CONTROLS SPACING
+        const sectionSpacing = window.innerHeight / 68; //TODO:CHANGE THIS VALUE FOR STLYLISTIC PURPISES, THIS CONTROLS SPACING
         plane.position.y = -sectionSpacing * 2;
 
         // Store metadata
@@ -3655,65 +3655,6 @@ function createSection3ImageLayer(zPosition, imagePath, speed, name = '') {
     });
 }
 
-// // Function to create clickable objects in section 3 that can be zoomed in on
-// function createSection3ZoomableObject(imagePath, position, size, name = '', zoomDetails = {}) {
-//     const textureLoader = new THREE.TextureLoader();
-//     textureLoader.load(imagePath, (texture) => {
-//         const geometry = new THREE.PlaneGeometry(size.width, size.height);
-//         const material = new THREE.MeshBasicMaterial({
-//             map: texture,
-//             transparent: true,
-//             side: THREE.DoubleSide
-//         });
-
-//         const plane = new THREE.Mesh(geometry, material);
-
-//         // Adjust position for section 3
-//         const sectionSpacing = window.innerHeight / 60; //CHANGE THIS FOR SLISTIC PURPOSES
-//         const adjustedPosition = {
-//             x: position.x,
-//             y: position.y - sectionSpacing * 2,
-//             z: position.z
-//         };
-
-//         plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
-
-//         // Store metadata
-//         plane.userData = {
-//             section: 'section3',
-//             isClickable: true,
-//             isZoomable: true,
-//             name: name,
-//             originalScale: new THREE.Vector3(1, 1, 1),
-//             hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
-//             isHovered: false,
-
-//             // Zoom properties
-//             zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
-//             zoomScale: zoomDetails.scale || 2,
-//             zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 },
-//             closeupTexture: null,
-//             closeupPath: zoomDetails.closeupPath || null
-//         };
-
-//         // If a closeup texture is provided, load it
-//         if (zoomDetails.closeupPath) {
-//             textureLoader.load(zoomDetails.closeupPath, (closeupTexture) => {
-//                 plane.userData.closeupTexture = closeupTexture;
-//             });
-//         }
-
-//         // Store original position for reset
-//         storeLayerOriginalPosition(plane);
-
-//         scene.add(plane);
-//         sectionObjects.section3.clickableObjects.push(plane);
-//         sectionObjects.section3.parallaxLayers.push(plane);
-
-//         console.log(`Created zoomable object in section 3: ${name}`);
-//     });
-// }
-// Function to create clickable objects in section 3 that can be zoomed in on (supports images and videos)
 function createSection3ZoomableObject(mediaPath, position, size, name = '', zoomDetails = {}) {
     let material;
     let geometry = new THREE.PlaneGeometry(size.width, size.height);
@@ -4598,6 +4539,19 @@ function animate(timestamp) {
                 // For regular layers, use the standard parallax
                 layer.position.y = baseY + (currentSection * 10 * layer.userData.parallaxSpeed);
             }
+            // Set visibility
+            if (layer.material) {
+                // Fade out when leaving section 1
+                if (currentSection > 0.5) {
+                    const opacity = Math.max(0, 1 - (currentSection - 0.5) * 2);
+                    layer.material.opacity = opacity;
+                    layer.visible = opacity > 0.01;
+                } else {
+                    layer.material.opacity = 1;
+                    layer.visible = true;
+                }
+            }
+
         });
 
 
