@@ -1883,7 +1883,7 @@ function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
     textureLoader.load(imagePath, (texture) => {
         const size = calculateFullscreenSize(zPosition);
 
-        const geometry = new THREE.PlaneGeometry(size.width * 1.1, size.height * 1);
+        const geometry = new THREE.PlaneGeometry(size.width * 1.1, size.height * 1.1);
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             transparent: true,
