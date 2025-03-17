@@ -2200,11 +2200,11 @@ function createSection2() {
     createAnimatedBowl({ x: 0, y: 4, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
     //TO DO: change th efuckass size of the physical image so the frame is no so fat. thse imgse also need to change accrdin to zoom in
     // Add animated tea - positioned to the right of the bowl
-    createAnimatedTea({ x: 1.8, y: 7, z: -0.9 }, { width: 4, height: 4 });
-    createAnimatedSoySauce({ x: 3.8, y: 3, z: 1.1 }, { width: 2.5, height: 2 });
+    createAnimatedTea({ x: 2.8, y: 7, z: -0.9 }, { width: 4, height: 4 });
+    createAnimatedSoySauce({ x: 3.8, y: 2.2, z: 1.1 }, { width: 2.5, height: 2 });
 
     // Add animated spring rolls - positioned to the right of the soy sauce
-    createAnimatedSpringRolls({ x: 5, y: 6.5, z: -0.1 }, { width: 4, height: 4 });
+    createAnimatedSpringRolls({ x: 5.3, y: 5, z: -0.1 }, { width: 4.3, height: 4.3 });
     createAnimatedNoodleChips({ x: -4.3, y: 5, z: 1.1 }, { width: 3.5, height: 3.5 });
     // Load bowl animation frames
     loadBowlAnimation();
