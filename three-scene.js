@@ -239,7 +239,7 @@ const projectDescriptions = {
     },
     tea: {
         title: "NeuroScent-MIT Reality Hack 2025 Smart Sensing Winner",
-        description: "Inspired by a reserach paper, I collaborated with a team of 5 to create Neuroscent, a system connecting VR brain-computer interfaces with olfactory displays to promote users’ mental well-being based on biofeedback. Used OpenBCI’s Galea ($30k) BCI VR Headset connected to Unity with a dynamic interactive environment based off of detected alpha brain waves. Basically, hands-free exploration in a Unity Enviornment that I designed and coded up from scratch :). Trying to turn this into a cross-university project right now!",
+        description: "Inspired by a research paper, I collaborated with a team of 5 to create Neuroscent, a system connecting VR brain-computer interfaces with olfactory displays to promote users’ mental well-being based on biofeedback. Used OpenBCI’s Galea ($30k) BCI VR Headset connected to Unity with a dynamic interactive environment based off of detected alpha brain waves. Basically, hands-free exploration in a Unity Enviornment that I designed and coded up from scratch :). Trying to turn this into a cross-university project right now!",
         technologies: ["C#", "Unity", "OpenBCI software", "Blender", "Arduino"],
         image: "assets/images/tea1.png",
         link: "https://devpost.com/software/neuroscent"
@@ -257,8 +257,8 @@ const projectDescriptions = {
     },
     noodlechips:
     {
-        title: "AI Anime Companion, Brainrot Hackathon Winner",
-        description: "The Skibidi Girlfriend Simulator allows users to interact with a virtual girlfriend. Users can chat with the simulation by entering text into the chat box. The text is then sent to OpenAI's GPT-3, which generates a skibidi-fied response. The simulator creates an interactive and dynamic conversation where the virtual girlfriend responds in real time, simulating a natural text conversation. I do have the scripts or transcribing speech and turning text to audio, the next goal will be to simply add it in.",
+        title: "Interactive AI Anime Companion, Brainrot Hackathon Winner",
+        description: "This project was really funny! Users can chat with the simulation by entering text into the chat box. The text is then sent to OpenAI's GPT-3, which generates a skibidi-fied response. The simulator creates an interactive and dynamic conversation where the virtual girlfriend responds in real time, simulating a natural text conversation. I do have the scripts or transcribing speech and turning text to audio, the next goal will be to simply add it in.",
         technologies: ["Google APIs", "OpenAI API", "Node.js, Express", "Python", "HTML", "CSS", "Javascript"],
         image: "assets/images/noodlechips1.png",
         link: "https://devpost.com/software/skibidi-yamdjw"
@@ -266,9 +266,6 @@ const projectDescriptions = {
 
     }
 
-    // springrolls: {
-
-    // }
 };
 
 // Initialize variables for model interaction (part 2 for now)
@@ -278,36 +275,6 @@ let previousMousePosition = { x: 0, y: 0 };
 let modelRotation = { x: 0, y: 0 };
 let modelLoaded = false;
 
-// const enhancedProjectDescriptions = {
-//     bowl: {
-//         title: "Interactive Data Visualization Dashboard",
-//         shortDescription: "An interactive dashboard that visualizes complex datasets using D3.js and React.",
-//         fullDescription: `This project addresses the challenge of making complex data accessible and understandable through intuitive visualizations. 
-
-//         I designed and implemented a responsive dashboard that transforms raw datasets into interactive visual representations. The dashboard features real-time filtering, customizable views, and animated transitions between data states.
-
-//         Key features include:
-//         • Interactive charts and graphs with tooltips and drill-down capabilities
-//         • Custom animation system for smooth transitions between data views
-//         • Responsive design that works across desktop and mobile devices
-//         • Data export functionality in multiple formats`,
-//         technologies: ["React", "D3.js", "JavaScript", "CSS", "REST API", "Figma"],
-//         mainImage: "assets/images/projects/data_viz_project.jpg",
-//         galleryImages: [
-//             "assets/images/projects/data_viz_1.jpg",
-//             "assets/images/projects/data_viz_2.jpg",
-//             "assets/images/projects/data_viz_3.jpg"
-//         ],
-//         stats: {
-//             duration: "3 months",
-//             role: "Lead Developer",
-//             team: "3 people",
-//             status: "Deployed"
-//         },
-//         link: "https://github.com/yourusername/data-viz-project",
-//         demoLink: "https://your-demo-url.com"
-//     }
-// };
 
 
 // ============================================================
@@ -361,7 +328,7 @@ function createStaticText2() {
 
     fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
         // Create text geometry with larger size
-        const textGeometry = new THREE.TextGeometry('Cornell  + AI \'27 ', {
+        const textGeometry = new THREE.TextGeometry('Cornell CS + AI \'27 ', {
             font: font,
             size: 0.5,
             height: 0.1,
