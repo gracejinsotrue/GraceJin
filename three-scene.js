@@ -4292,7 +4292,7 @@ function createSection3() {
     //  createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
     createSection3VideoObject(
         'assets/vid.mp4',
-        { x: 2.35, y: 3.65, z: 1.499 },    // Position in the scene
+        { x: 2.35, y: 3.65, z: 1.499 },
         { width: 1.3, height: 2.15 },
         'demo-video',             // Name for the video object
         {
