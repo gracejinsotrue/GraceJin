@@ -481,7 +481,7 @@ function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
     modelContainer.scale.set(0.9, 0.9, 0.9);
-    modelContainer.position.set(-3.5, -window.innerHeight / 45 + 11, 1.3);
+    modelContainer.position.set(-3.5, -window.innerHeight / 45 + 11, 1.7);
     modelContainer.rotation.x = Math.PI / 4;
     modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
@@ -4070,6 +4070,215 @@ function onMouseClick(event) {
     }
 }
 
+// Function to create a new video in section 3
+function createSection3VideoObject(videoPath, position, size, name = '', zoomDetails = {}) {
+    // Create video element
+    const video = document.createElement('video');
+    video.src = videoPath;
+    video.loop = true;
+    video.muted = true;  // Muted to allow autoplay
+    video.playsInline = true; // For mobile
+    video.crossOrigin = "anonymous";
+
+    // Set video properties
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+
+    // Create a container to track video loading
+    const videoContainer = {
+        video: video,
+        isLoaded: false,
+        isPlaying: false
+    };
+
+    // Listen for metadata loaded to know when video is ready
+    video.addEventListener('loadedmetadata', () => {
+        console.log(`Video ${name} metadata loaded, duration:`, video.duration);
+        videoContainer.isLoaded = true;
+
+        // Try to play the video once loaded
+        tryPlayVideo();
+    });
+
+    // Error handling
+    video.addEventListener('error', (e) => {
+        console.error(`Error loading video ${name}:`, e);
+    });
+
+    // Create VideoTexture
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.format = THREE.RGBAFormat;
+
+    // Create geometry and material
+    const geometry = new THREE.PlaneGeometry(size.width, size.height);
+    const material = new THREE.MeshBasicMaterial({
+        map: videoTexture,
+        side: THREE.DoubleSide,
+        transparent: true
+    });
+
+    // Create the mesh
+    const plane = new THREE.Mesh(geometry, material);
+
+    // Adjust position for section 3
+    const sectionSpacing = window.innerHeight / 60;
+    const adjustedPosition = {
+        x: position.x,
+        y: position.y - sectionSpacing * 2,
+        z: position.z
+    };
+
+    plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+    // Store metadata and video reference
+    plane.userData = {
+        section: 'section3',
+        isClickable: true,
+        isZoomable: true,
+        isVideo: true,  // Flag to identify as video
+        name: name,
+        videoElement: video,
+        videoContainer: videoContainer,
+        originalScale: new THREE.Vector3(1, 1, 1),
+        hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+        isHovered: false,
+
+        // Zoom properties
+        zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+        zoomScale: zoomDetails.scale || 2,
+        zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 }
+    };
+
+    // Function to try playing the video
+    function tryPlayVideo() {
+        if (videoContainer.isLoaded && !videoContainer.isPlaying) {
+            video.play().then(() => {
+                videoContainer.isPlaying = true;
+                console.log(`Video ${name} is now playing`);
+            }).catch(e => {
+                console.warn(`Autoplay prevented for video ${name}:`, e);
+                // We'll try again when user interacts
+            });
+        }
+    }
+
+    // Store original position for reset
+    storeLayerOriginalPosition(plane);
+
+    scene.add(plane);
+    sectionObjects.section3.clickableObjects.push(plane);
+    sectionObjects.section3.parallaxLayers.push(plane);
+
+    console.log(`Created video object in section 3: ${name}`);
+
+    return plane;
+}
+
+// Update the onMouseClick function to handle video play/pause on click
+function updateVideoClickHandler() {
+    // Store original click handler
+    const originalClickHandler = onMouseClick;
+
+    // Create new handler that handles videos
+    window.onMouseClick = function (event) {
+        // First check if we clicked a video
+        const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+        // Get all clickable objects from all sections
+        const allClickableObjects = [];
+        Object.values(sectionObjects).forEach(section => {
+            if (section.clickableObjects) {
+                allClickableObjects.push(...section.clickableObjects);
+            }
+        });
+
+        // Find intersected objects
+        const intersects = raycaster.intersectObjects(allClickableObjects);
+
+        // Check if we clicked a video
+        if (intersects.length > 0) {
+            const clickedObject = intersects[0].object;
+
+            // If it's a video object, try to play/pause it
+            if (clickedObject.userData.isVideo && clickedObject.userData.videoElement) {
+                const video = clickedObject.userData.videoElement;
+                const container = clickedObject.userData.videoContainer;
+
+                if (video.paused || !container.isPlaying) {
+                    // Try to play the video
+                    video.play().then(() => {
+                        container.isPlaying = true;
+                        console.log(`Video ${clickedObject.userData.name} started playing`);
+                    }).catch(e => {
+                        console.error(`Could not play video ${clickedObject.userData.name}:`, e);
+                    });
+                } else {
+                    // Pause the video
+                    video.pause();
+                    container.isPlaying = false;
+                    console.log(`Video ${clickedObject.userData.name} paused`);
+                }
+
+                // Also handle zooming if it's zoomable
+                if (clickedObject.userData.isZoomable) {
+                    handleZoomableObjectClick(clickedObject);
+                }
+
+                // We handled the video, so return
+                return;
+            }
+        }
+
+        // If we didn't handle a video, use the original click handler
+        originalClickHandler(event);
+    };
+
+    // Replace the event listener
+    window.removeEventListener('click', originalClickHandler);
+    window.addEventListener('click', window.onMouseClick);
+
+    console.log("Video click handler installed");
+}
+
+// When we're in section 3, try to play videos automatically
+function updateVideoVisibility() {
+    if (currentSection < 1.5) {
+        // We're not in section 3, pause all videos
+        sectionObjects.section3.parallaxLayers.forEach(layer => {
+            if (layer.userData.isVideo && layer.userData.videoElement) {
+                const video = layer.userData.videoElement;
+                const container = layer.userData.videoContainer;
+
+                if (!video.paused && container.isPlaying) {
+                    video.pause();
+                    container.isPlaying = false;
+                }
+            }
+        });
+    } else {
+        // We're in section 3, try to play videos
+        sectionObjects.section3.parallaxLayers.forEach(layer => {
+            if (layer.userData.isVideo && layer.userData.videoElement) {
+                const video = layer.userData.videoElement;
+                const container = layer.userData.videoContainer;
+
+                if ((video.paused || !container.isPlaying) && container.isLoaded) {
+                    video.play().then(() => {
+                        container.isPlaying = true;
+                    }).catch(e => {
+                        // Autoplay may be prevented
+                        console.warn(`Could not autoplay video ${layer.userData.name}:`, e);
+                    });
+                }
+            }
+        });
+    }
+}
 
 // Create section 3
 function createSection3() {
@@ -4078,10 +4287,34 @@ function createSection3() {
     createSection3ImageLayer(-6, 'assets/images/section3/background.png', 0.2, 'background');
     createSection3ImageLayer(-2, 'assets/images/section3/bulletin_board.png', 0.2, 'bulletinboard');
     // createSection3ImageLayer(-1, 'assets/images/section3/desk_surface.png', 0.4, 'desk-surface');
-    createSection3ImageLayer(1, 'assets/images/section3/desk.png', 0.6, 'desk');
-    // // createSection3ImageLayer(-3, 'assets/images/section3/books.png', 0.7, 'books');
+    createSection3ImageLayer(1.4, 'assets/images/section3/desk.png', 0.6, 'desk');
+    // createSection3ImageLayer(-3, 'assets/images/section3/phonestand.png', 0.7, 'books');
     //  createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
+    createSection3VideoObject(
+        'assets/vid.mp4',
+        { x: 2.35, y: 3.65, z: 1.499 },    // Position in the scene
+        { width: 1.3, height: 2.15 },
+        'demo-video',             // Name for the video object
+        {
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 1.5,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
 
+
+    createSection3ZoomableObject(
+        'assets/images/section3/phonestand.png',
+        { x: 2.35, y: 3.6, z: 1.5 },
+        { width: 3, height: 3 },
+        'phonestand',
+        {
+            closeupPath: 'assets/images/section3/phonestand.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
     createSection3ZoomableObject(
         'assets/images/section3/sticky.png',
         { x: -3, y: 7.2, z: 0.1 },
@@ -4108,6 +4341,8 @@ function createSection3() {
             rotation: { x: 0, y: 0, z: 0 }
         }
     );
+
+
 
     createSection3ZoomableObject(
         'assets/images/section3/instanote.png',
