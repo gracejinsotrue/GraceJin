@@ -14,7 +14,7 @@ document.getElementById('container').appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Optional: for softer shadows
 // Lighting
-const ambientLight = new THREE.AmbientLight(0xfff2cc, 1.2);
+const ambientLight = new THREE.AmbientLight(0xfff2cc, 1.1);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffc0cb, 1);
@@ -254,7 +254,16 @@ const projectDescriptions = {
         link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 
+    },
+    noodlechips:
+    {
+        title: "Interactive AI Anime Companion, Brainrot Hackathon Winner",
+        description: "Built a full-stack webapp that allows users to interact with a virtual girlriend. sers can chat with the simulation by entering text into the chat box. The text is then sent to OpenAI's GPT-3, which generates a skibidi-fied response. The simulator creates an interactive and dynamic conversation where the virtual girlfriend responds in real time, simulating a natural text conversation. Currently working on integrating Google's text-to-speech and speech-to-text API's.",
+        technologies: ["Google Cloud APIs", "OpenAI APIs", "Node.js", "express.js", "Javascript", "HTML", "CSS", "python"],
+        image: "assets/images/noodlechips1.png",
+        link: "https://devpost.com/software/skibidi-yamdjw"
     }
+
 
     // springrolls: {
 
@@ -480,7 +489,7 @@ function createAnimatedText() {
         requestAnimationFrame(animateText);
     });
 }
-function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.1) { //should extra margin be in the param
+function calculateFullscreenSize(distanceFromCamera, extraMargin = 0.3) { //should extra margin be in the param
     const fov = camera.fov * (Math.PI / 180);
     const visibleHeight = 2 * Math.tan(fov / 2) * Math.abs(distanceFromCamera - camera.position.z);
     const visibleWidth = visibleHeight * camera.aspect;
@@ -504,8 +513,8 @@ function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
     modelContainer.scale.set(1, 1, 1);
-    modelContainer.position.set(-3, -window.innerHeight / 45 + 11.5, 1.5);
-    modelContainer.rotation.x = Math.PI / 2;
+    modelContainer.position.set(-3.6, -window.innerHeight / 45 + 13.7, 1.3);
+    modelContainer.rotation.x = Math.PI / 4;
     modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
 
@@ -534,7 +543,7 @@ function loadInteractiveModel() {
 
     // Rotation variables
     let isRotating = true;  // Set to true to start rotating by default
-    const rotationSpeed = 0.01;  // Adjust rotation speed as needed
+    const rotationSpeed = 0.02;  // Adjust rotation speed as needed
 
     // Load the model
     loader.load(
@@ -905,8 +914,7 @@ function zoomSectionOut(layers) {
 
 // Function to process panning for all sections
 function processPanning() {
-    if (!isPanning) return;
-
+    if (!isPanning || isDragging) return;
     // Get the current active section layers
     let currentLayers = [];
 
@@ -1873,7 +1881,7 @@ function createSection2ImageLayer(zPosition, imagePath, speed, name = '') {
     textureLoader.load(imagePath, (texture) => {
         const size = calculateFullscreenSize(zPosition);
 
-        const geometry = new THREE.PlaneGeometry(size.width * 1.3, size.height * 1.1);
+        const geometry = new THREE.PlaneGeometry(size.width * 1.1, size.height * 1.05);
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             transparent: true,
@@ -2190,16 +2198,18 @@ function createSection2() {
     createAnimatedBowl({ x: 0, y: 5, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
     //TO DO: change th efuckass size of the physical image so the frame is no so fat. thse imgse also need to change accrdin to zoom in
     // Add animated tea - positioned to the right of the bowl
-    createAnimatedTea({ x: -5.5, y: 7, z: -0.9 }, { width: 4, height: 4 });
+    createAnimatedTea({ x: -5.5, y: 2, z: -0.9 }, { width: 4, height: 4 });
     createAnimatedSoySauce({ x: 3.8, y: 3, z: 1.1 }, { width: 2.5, height: 2 });
 
     // Add animated spring rolls - positioned to the right of the soy sauce
-    createAnimatedSpringRolls({ x: 5, y: 8.5, z: -0.1 }, { width: 4, height: 6.7 });
+    createAnimatedSpringRolls({ x: 5, y: 6.5, z: -0.1 }, { width: 4, height: 4 });
+    createAnimatedNoodleChips({ x: -5.5, y: 6, z: 0 }, { width: 4, height: 4 });
     // Load bowl animation frames
     loadBowlAnimation();
     loadTeaAnimation();
     loadSoySauceAnimation();
     loadSpringRollsAnimation();
+    loadNoodleChipsAnimation();
 
     addSwitchableImagesToSection2();
     initSwitchableImages();
@@ -2220,20 +2230,20 @@ function createSection2() {
 }
 
 
-// Add these mouse event handlers for model interaction
 function onModelMouseDown(event) {
     // Only interact if we're in section 2
     if (Math.abs(currentSection - 1) > 0.5) return;
+
+    // Don't prevent events if panning is active
+    if (isPanning) return;
+
     const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
     const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
 
     if (modelContainer) {
-        // Log to verify the model is being targeted
-        console.log("Checking for model intersection");
-
-        // Create an array of all objects to check (model container and its children)
+        // Create an array of all objects to check
         const objectsToCheck = [modelContainer];
         modelContainer.traverse(child => {
             if (child.isMesh) {
@@ -2242,7 +2252,6 @@ function onModelMouseDown(event) {
         });
 
         const intersects = raycaster.intersectObjects(objectsToCheck, true);
-        console.log("Intersects:", intersects.length);
 
         if (intersects.length > 0) {
             console.log("Model clicked");
@@ -2252,12 +2261,14 @@ function onModelMouseDown(event) {
                 y: event.clientY
             };
 
-            // Change cursor style
             document.body.style.cursor = 'grabbing';
 
-            // Prevent other click events
-            event.preventDefault();
-            event.stopPropagation();
+            // Only prevent default if we're actually interacting with the model
+            // and not trying to pan the scene
+            if (!keysPressed[panKeys.left] && !keysPressed[panKeys.right]) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
         }
     }
 }
@@ -3379,7 +3390,128 @@ function updateSpringRollsAnimation(timestamp) {
     });
 }
 
+// Animation state for the noodle chips
+const noodleChipsAnimation = {
+    frames: [],
+    currentFrame: 0,
+    frameCount: 3,  // 3 frames for noodle chips
+    isClickable: true,
+    imagePath: 'assets/images/noodlechips1.png',  // Path to display when clicked
+    framesLoaded: 0,
+    transitionDuration: 0.5, // 0.5 seconds per frame
+    lastTransitionTime: 0
+};
 
+// Function to load noodle chips animation frames
+function loadNoodleChipsAnimation() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load all three frames
+    for (let i = 1; i <= noodleChipsAnimation.frameCount; i++) {
+        const framePath = `assets/images/noodlechips${i}.png`;
+        console.log(`Attempting to load noodle chips frame: ${framePath}`);
+
+        textureLoader.load(framePath, (texture) => {
+            noodleChipsAnimation.frames[i - 1] = texture;
+            noodleChipsAnimation.framesLoaded++;
+            console.log(`Loaded noodle chips frame ${i}, total loaded: ${noodleChipsAnimation.framesLoaded}/${noodleChipsAnimation.frameCount}`);
+
+            // If this is the first frame, make sure it's applied to the noodle chips
+            if (i === 1 && sectionObjects.section2) {
+                // Find the noodle chips in the scene
+                sectionObjects.section2.parallaxLayers.forEach(layer => {
+                    if (layer.userData.name === 'noodlechips') {
+                        layer.material.map = texture;
+                        layer.material.needsUpdate = true;
+                    }
+                });
+            }
+        }, undefined, (err) => {
+            console.error(`Error loading ${framePath}:`, err);
+        });
+    }
+}
+
+// Function to create the animated noodle chips object
+function createAnimatedNoodleChips(position, size) {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Load the first frame to start with
+    textureLoader.load('assets/images/noodlechips1.png', (texture) => {
+        console.log("Successfully loaded first noodle chips frame");
+
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 2
+        const sectionSpacing = window.innerHeight / 70;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing, // Position in section 2
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata
+        plane.userData = {
+            section: 'section2',
+            name: 'noodlechips',
+            isAnimated: true,
+            isClickable: noodleChipsAnimation.isClickable,
+            imagePath: noodleChipsAnimation.imagePath,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false
+        };
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+
+        // Add to appropriate arrays
+        sectionObjects.section2.parallaxLayers.push(plane);
+
+        if (noodleChipsAnimation.isClickable) {
+            sectionObjects.section2.clickableObjects.push(plane);
+        }
+
+        console.log("Created animated noodle chips");
+    }, undefined, (error) => {
+        console.error("Error loading first noodle chips frame:", error);
+    });
+}
+
+// Function to update noodle chips animation
+function updateNoodleChipsAnimation(timestamp) {
+    // Only animate if we have all frames loaded
+    if (noodleChipsAnimation.framesLoaded < noodleChipsAnimation.frameCount) return;
+
+    // Only animate when in section 2
+    if (currentSection < 0.5 || currentSection >= 1.5) return;
+
+    // Check if it's time for a transition (every transitionDuration seconds)
+    if (timestamp - noodleChipsAnimation.lastTransitionTime < noodleChipsAnimation.transitionDuration * 1000) return;
+
+    // Time to change frames
+    noodleChipsAnimation.lastTransitionTime = timestamp;
+    noodleChipsAnimation.currentFrame = (noodleChipsAnimation.currentFrame + 1) % noodleChipsAnimation.frameCount;
+
+    // Find the noodle chips and update its texture
+    sectionObjects.section2.parallaxLayers.forEach(layer => {
+        if (layer.userData.name === 'noodlechips' && layer.userData.isAnimated) {
+            layer.material.map = noodleChipsAnimation.frames[noodleChipsAnimation.currentFrame];
+            layer.material.needsUpdate = true;
+        }
+    });
+}
 
 // ============================================================
 // SECTION 3: DESK VIEW WITH INTERACTIVE OBJECTS
@@ -4349,6 +4481,7 @@ function animate(timestamp) {
     updateTeaAnimation(timestamp);
     updateSoySauceAnimation(timestamp);
     updateSpringRollsAnimation(timestamp);
+    updateNoodleChipsAnimation(timestamp);
 
 
 
