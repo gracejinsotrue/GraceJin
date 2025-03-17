@@ -257,11 +257,11 @@ const projectDescriptions = {
     },
     noodlechips:
     {
-        title: "AI Anime Companion",
-        description: "I just really like soy sauce.",
-        technologies: ["probably crack because it tastes so good"],
-        image: "assets/images/soysauce1.png",
-        link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        title: "AI Anime Companion, Brainrot Hackathon Winner",
+        description: "The Skibidi Girlfriend Simulator allows users to interact with a virtual girlfriend. Users can chat with the simulation by entering text into the chat box. The text is then sent to OpenAI's GPT-3, which generates a skibidi-fied response. The simulator creates an interactive and dynamic conversation where the virtual girlfriend responds in real time, simulating a natural text conversation. I do have the scripts or transcribing speech and turning text to audio, the next goal will be to simply add it in.",
+        technologies: ["Google APIs", "OpenAI API", "Node.js, Express", "Python", "HTML", "CSS", "Javascript"],
+        image: "assets/images/noodlechips1.png",
+        link: "https://devpost.com/software/skibidi-yamdjw"
 
 
     }
@@ -513,9 +513,9 @@ function calculateFullscreenSizeW(distanceFromCamera, extraMargin = 0.2, widthMu
 function loadInteractiveModel() {
     // Create a container for the model
     modelContainer = new THREE.Object3D();
-    modelContainer.scale.set(1, 1, 1);
-    modelContainer.position.set(-3.5, -window.innerHeight / 45 + 13.5, 1.3);
-    modelContainer.rotation.x = Math.PI / 2;
+    modelContainer.scale.set(0.9, 0.9, 0.9);
+    modelContainer.position.set(-3.5, -window.innerHeight / 45 + 11, 1.3);
+    modelContainer.rotation.x = Math.PI / 4;
     modelContainer.rotation.y = (Math.PI / 2);
     scene.add(modelContainer);
 
@@ -544,7 +544,7 @@ function loadInteractiveModel() {
 
     // Rotation variables
     let isRotating = true;  // Set to true to start rotating by default
-    const rotationSpeed = 0.01;  // Adjust rotation speed as needed
+    const rotationSpeed = 0.02;
 
     // Load the model
     loader.load(
@@ -2175,7 +2175,7 @@ function createSection2SwitchableImage(position, size, name) {
 function addSwitchableImagesToSection2() {
     // Add the tangerine at an appropriate position
     createSection2SwitchableImage(
-        { x: 3.9, y: 4.8, z: 0.1 },  // Position
+        { x: -3, y: 6, z: 0.1 },  // Position
         { width: 2.4, height: 3 },     // Size
         'tangerine'                   // Name (must match entry in switchableImages)
     );
@@ -2197,15 +2197,15 @@ function createSection2() {
     loadInteractiveModel(); //fix panning issue
 
     // Add animated bowl
-    createAnimatedBowl({ x: 0, y: 5, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
+    createAnimatedBowl({ x: 0, y: 4, z: 1 }, { width: 4.5, height: 7 }); //ok now it looks fat, adjust height for the perspective to not look fat
     //TO DO: change th efuckass size of the physical image so the frame is no so fat. thse imgse also need to change accrdin to zoom in
     // Add animated tea - positioned to the right of the bowl
-    createAnimatedTea({ x: -5.5, y: 2, z: -0.9 }, { width: 4, height: 4 });
+    createAnimatedTea({ x: 1.8, y: 7, z: -0.9 }, { width: 4, height: 4 });
     createAnimatedSoySauce({ x: 3.8, y: 3, z: 1.1 }, { width: 2.5, height: 2 });
 
     // Add animated spring rolls - positioned to the right of the soy sauce
     createAnimatedSpringRolls({ x: 5, y: 6.5, z: -0.1 }, { width: 4, height: 4 });
-    createAnimatedNoodleChips({ x: -4, y: 5.5, z: 1.1 }, { width: 3, height: 3 });
+    createAnimatedNoodleChips({ x: -4.3, y: 5, z: 1.1 }, { width: 3.5, height: 3.5 });
     // Load bowl animation frames
     loadBowlAnimation();
     loadTeaAnimation();
