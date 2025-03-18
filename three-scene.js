@@ -4592,7 +4592,7 @@ function createSection3() {
     );
     createSection3ZoomableObject(
         'assets/images/section3/sticky.png',
-        { x: -3, y: 7.2, z: 0.1 },
+        { x: -3, y: 6.5, z: 0.1 },
         { width: 3, height: 2.5 },
         'sticky',
         {
@@ -4603,42 +4603,38 @@ function createSection3() {
         }
     );
 
-    // Add zoomable objects
-    createSection3ZoomableObject(
-        'assets/images/section3/insta.png',
-        { x: 0.5, y: 4.8, z: 0 },
-        { width: 2, height: 3.5 },
-        'instagram',
-        {
-            closeupPath: 'assets/images/section3/insta.png',
-            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
-            scale: 3,
-            rotation: { x: 0, y: 0, z: 0 }
-        }
-    );
+    // // Add zoomable objects
+    // createSection3ZoomableObject(
+    //     'assets/images/section3/insta.png',
+    //     { x: 6, y: 3.6, z: 0.2 },
+    //     { width: 2, height: 3.5 },
+    //     'instagram',
+    //     {
+    //         closeupPath: 'assets/images/section3/insta.png',
+    //         position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+    //         scale: 3,
+    //         rotation: { x: 0, y: 0, z: 0 }
+    //     }
+    // );
 
 
-
-
-
-
-    createSection3ZoomableObject(
-        'assets/images/section3/instanote.png',
-        { x: 2, y: 6, z: 0 },
-        { width: 2.5, height: 2.5 },
-        'instanote',
-        {
-            closeupPath: 'assets/images/section3/instanote.png',
-            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
-            scale: 3,
-            rotation: { x: 0, y: 0, z: 0 }
-        }
-    );
+    // createSection3ZoomableObject(
+    //     'assets/images/section3/instanote.png',
+    //     { x: 6.5, y: 6, z: 0.2 },
+    //     { width: 2.5, height: 2.5 },
+    //     'instanote',
+    //     {
+    //         closeupPath: 'assets/images/section3/instanote.png',
+    //         position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+    //         scale: 3,
+    //         rotation: { x: 0, y: 0, z: 0 }
+    //     }
+    // );
 
 
     createSection3ZoomableObject(
         'assets/images/section3/characterdesign1.png',
-        { x: -4, y: 5.5, z: 0 },
+        { x: 6, y: 5.5, z: 0 },
         { width: 3, height: 3.2 },
         'handsomePL1',
         {
@@ -4650,10 +4646,23 @@ function createSection3() {
     );
 
 
+    createSection3ZoomableObject(
+        'assets/images/section3/characterdesign2.png',
+        { x: 5, y: 3.5, z: 0 },
+        { width: 3, height: 3.2 },
+        'handsomePL2',
+        {
+            closeupPath: 'assets/images/section3/characterdesign2.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
     // Add zoomable objects
     createSection3ZoomableObject(
         'assets/images/section3/scolastic.png',
-        { x: 1, y: 7.5, z: 0 },
+        { x: 1, y: 6.5, z: 0 },
         { width: 5.5, height: 2.1 },
         'instagram',
         {
@@ -4665,18 +4674,6 @@ function createSection3() {
     );
 
 
-    createSection3ZoomableObject(
-        'assets/images/section3/characterdesign2.png',
-        { x: -2, y: 4, z: 0 },
-        { width: 3, height: 3.2 },
-        'handsomePL2',
-        {
-            closeupPath: 'assets/images/section3/characterdesign2.png',
-            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
-            scale: 3,
-            rotation: { x: 0, y: 0, z: 0 }
-        }
-    );
 
     //enhanceSection3WithDrawableScreen(); // this is not working bro
 
