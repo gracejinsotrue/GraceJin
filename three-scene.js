@@ -4533,9 +4533,9 @@ function createSection3() {
     console.log("Creating section 3...");
     // Background layers with parallax
     createSection3ImageLayer(-6, 'assets/images/section3/background.png', 0.2, 'background');
-    createSection3ImageLayer(-2, 'assets/images/section3/bulletin_board.png', 0.2, 'bulletinboard');
+    createSection3ImageLayer(-0.1, 'assets/images/section3/bulletin_board.png', 0.2, 'bulletinboard');
     // createSection3ImageLayer(-1, 'assets/images/section3/desk_surface.png', 0.4, 'desk-surface');
-    createSection3ImageLayer(1.4, 'assets/images/section3/desk.png', 0.6, 'desk');
+    createSection3ImageLayer(1.499, 'assets/images/section3/desk.png', 0.6, 'desk');
     // createSection3ImageLayer(-3, 'assets/images/section3/phonestand.png', 0.7, 'books');
     //  createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
     // 6. Call this function in createSection3() to use the updated version for creating videos
@@ -4667,6 +4667,48 @@ function createSection3() {
         'instagram',
         {
             closeupPath: 'assets/images/section3/scolastic.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+
+    // Add zoomable objects
+    createSection3ZoomableObject(
+        'assets/images/section3/socials.png',
+        { x: -5, y: 3, z: 0 },
+        { width: 2, height: 2 },
+        'socials',
+        {
+            closeupPath: 'assets/images/section3/socials.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+    // Add zoomable objects
+    createSection3ZoomableObject(
+        'assets/images/section3/sticky2.png',
+        { x: -5, y: 5, z: 0 },
+        { width: 2, height: 2 },
+        'socials',
+        {
+            closeupPath: 'assets/images/section3/sticky2.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+    // Add zoomable objects
+    createSection3ZoomableObject(
+        'assets/images/section3/window.png',
+        { x: -11, y: 5, z: -3 },
+        { width: 6, height: 9 },
+        'window',
+        {
+            closeupPath: 'assets/images/section3/window2.png',
             position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
             scale: 3,
             rotation: { x: 0, y: 0, z: 0 }
