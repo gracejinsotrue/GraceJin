@@ -98,6 +98,31 @@ const textAnimationState = {
     sectionTwoActive: false
 };
 
+// 1. First, create a data structure to store multiple video sources for each video object
+const switchableVideos = {
+    handsomePL: {
+        currentVideoIndex: 0,
+        videoPaths: [
+            'assets/vid.mp4',
+            'assets/cooking.mp4',
+            'assets/vid2.mp4'
+
+        ],
+        videoElements: [], // This will store the preloaded video elements
+        instanceIndices: {} // This will track each instance of this video separately
+    },
+    spiderman: {
+        currentVideoIndex: 0,
+        videoPaths: [
+            'assets/spiderman.mp4',
+            'assets/genshin.mp4',
+            'assets/airplanes.mp4'
+        ],
+        videoElements: [],
+        instanceIndices: {} // This will track each instance of this video separately
+    }
+    // Add more video configurations as needed
+};
 
 // Animation planes are global
 let normalAnimationPlane = null;
@@ -4069,119 +4094,319 @@ function onMouseClick(event) {
         console.log(`Clicked on ${clickedObject.userData.name}`);
     }
 }
-
-// Function to create a new video in section 3
+// 2. Modify the createSection3VideoObject function to support switchable videos
 function createSection3VideoObject(videoPath, position, size, name = '', zoomDetails = {}) {
-    // Create video element
-    const video = document.createElement('video');
-    video.src = videoPath;
-    video.loop = true;
-    video.muted = true;  // Muted to allow autoplay
-    video.playsInline = true; // For mobile
-    video.crossOrigin = "anonymous";
+    // Check if this is a switchable video
+    const isSwitchable = switchableVideos[name] !== undefined;
+    let videoContainer;
 
-    // Set video properties
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
+    if (isSwitchable) {
+        // For switchable videos, we'll preload all video elements
+        videoContainer = preloadSwitchableVideos(name);
 
-    // Create a container to track video loading
-    const videoContainer = {
-        video: video,
-        isLoaded: false,
-        isPlaying: false
-    };
+        // Use the first video for initial display
+        const video = videoContainer.videoElements[0];
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = "anonymous";
 
-    // Listen for metadata loaded to know when video is ready
-    video.addEventListener('loadedmetadata', () => {
-        console.log(`Video ${name} metadata loaded, duration:`, video.duration);
-        videoContainer.isLoaded = true;
+        // Set video properties
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
 
-        // Try to play the video once loaded
-        tryPlayVideo();
-    });
+        // Create VideoTexture
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
 
-    // Error handling
-    video.addEventListener('error', (e) => {
-        console.error(`Error loading video ${name}:`, e);
-    });
+        // Create geometry and material
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            side: THREE.DoubleSide,
+            transparent: true
+        });
 
-    // Create VideoTexture
-    const videoTexture = new THREE.VideoTexture(video);
-    videoTexture.minFilter = THREE.LinearFilter;
-    videoTexture.magFilter = THREE.LinearFilter;
-    videoTexture.format = THREE.RGBAFormat;
+        // Create the mesh
+        const plane = new THREE.Mesh(geometry, material);
 
-    // Create geometry and material
-    const geometry = new THREE.PlaneGeometry(size.width, size.height);
-    const material = new THREE.MeshBasicMaterial({
-        map: videoTexture,
-        side: THREE.DoubleSide,
-        transparent: true
-    });
+        // Adjust position for section 3
+        const sectionSpacing = window.innerHeight / 60;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing * 2,
+            z: position.z
+        };
 
-    // Create the mesh
-    const plane = new THREE.Mesh(geometry, material);
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
 
-    // Adjust position for section 3
-    const sectionSpacing = window.innerHeight / 60;
-    const adjustedPosition = {
-        x: position.x,
-        y: position.y - sectionSpacing * 2,
-        z: position.z
-    };
+        // Store metadata and video reference
+        plane.userData = {
+            section: 'section3',
+            isClickable: true,
+            isZoomable: true,
+            isVideo: true,
+            isSwitchableVideo: true,
+            name: name,
+            videoElement: video,
+            videoContainer: videoContainer,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1, 1, 1),
+            isHovered: false,
+            videoInstanceId: plane.id, // Store the unique ID of this instance
 
-    plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+            // Zoom properties
+            zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+            zoomScale: zoomDetails.scale || 2,
+            zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 }
+        };
 
-    // Store metadata and video reference
-    plane.userData = {
-        section: 'section3',
-        isClickable: true,
-        isZoomable: true,
-        isVideo: true,  // Flag to identify as video
-        name: name,
-        videoElement: video,
-        videoContainer: videoContainer,
-        originalScale: new THREE.Vector3(1, 1, 1),
-        hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
-        isHovered: false,
-
-        // Zoom properties
-        zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
-        zoomScale: zoomDetails.scale || 2,
-        zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 }
-    };
-
-    // Function to try playing the video
-    function tryPlayVideo() {
-        if (videoContainer.isLoaded && !videoContainer.isPlaying) {
-            video.play().then(() => {
-                videoContainer.isPlaying = true;
-                console.log(`Video ${name} is now playing`);
-            }).catch(e => {
-                console.warn(`Autoplay prevented for video ${name}:`, e);
-                // We'll try again when user interacts
-            });
+        // Initialize this instance in the tracking object
+        if (switchableVideos[name]) {
+            switchableVideos[name].instanceIndices[plane.id] = 0;
         }
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+        sectionObjects.section3.clickableObjects.push(plane);
+        sectionObjects.section3.parallaxLayers.push(plane);
+
+        console.log(`Created switchable video object in section 3: ${name}`);
+
+        // Try to play the initial video
+        video.play().catch(e => {
+            console.warn(`Autoplay prevented for video ${name}:`, e);
+        });
+
+        return plane;
+    } else {
+        // Original implementation for non-switchable videos
+        // Create video element
+        const video = document.createElement('video');
+        video.src = videoPath;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = "anonymous";
+
+        // Set video properties
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+
+        // Create a container to track video loading
+        videoContainer = {
+            video: video,
+            isLoaded: false,
+            isPlaying: false,
+            videoElements: [video] // For consistency with switchable videos
+        };
+
+        // Listen for metadata loaded to know when video is ready
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`Video ${name} metadata loaded, duration:`, video.duration);
+            videoContainer.isLoaded = true;
+
+            // Try to play the video once loaded
+            tryPlayVideo();
+        });
+
+        // Error handling
+        video.addEventListener('error', (e) => {
+            console.error(`Error loading video ${name}:`, e);
+        });
+
+        // Create VideoTexture
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // Create geometry and material
+        const geometry = new THREE.PlaneGeometry(size.width, size.height);
+        const material = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            side: THREE.DoubleSide,
+            transparent: true
+        });
+
+        // Create the mesh
+        const plane = new THREE.Mesh(geometry, material);
+
+        // Adjust position for section 3
+        const sectionSpacing = window.innerHeight / 60;
+        const adjustedPosition = {
+            x: position.x,
+            y: position.y - sectionSpacing * 2,
+            z: position.z
+        };
+
+        plane.position.set(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z);
+
+        // Store metadata and video reference
+        plane.userData = {
+            section: 'section3',
+            isClickable: true,
+            isZoomable: true,
+            isVideo: true,
+            isSwitchableVideo: false,
+            name: name,
+            videoElement: video,
+            videoContainer: videoContainer,
+            originalScale: new THREE.Vector3(1, 1, 1),
+            hoverScale: new THREE.Vector3(1.05, 1.05, 1.05),
+            isHovered: false,
+
+            // Zoom properties
+            zoomPosition: zoomDetails.position || { x: 0, y: -sectionSpacing * 2, z: -2 },
+            zoomScale: zoomDetails.scale || 2,
+            zoomRotation: zoomDetails.rotation || { x: 0, y: 0, z: 0 }
+        };
+
+        // Function to try playing the video
+        function tryPlayVideo() {
+            if (videoContainer.isLoaded && !videoContainer.isPlaying) {
+                video.play().then(() => {
+                    videoContainer.isPlaying = true;
+                    console.log(`Video ${name} is now playing`);
+                }).catch(e => {
+                    console.warn(`Autoplay prevented for video ${name}:`, e);
+                    // We'll try again when user interacts
+                });
+            }
+        }
+
+        // Store original position for reset
+        storeLayerOriginalPosition(plane);
+
+        scene.add(plane);
+        sectionObjects.section3.clickableObjects.push(plane);
+        sectionObjects.section3.parallaxLayers.push(plane);
+
+        console.log(`Created video object in section 3: ${name}`);
+
+        return plane;
     }
-
-    // Store original position for reset
-    storeLayerOriginalPosition(plane);
-
-    scene.add(plane);
-    sectionObjects.section3.clickableObjects.push(plane);
-    sectionObjects.section3.parallaxLayers.push(plane);
-
-    console.log(`Created video object in section 3: ${name}`);
-
-    return plane;
 }
 
-// Update the onMouseClick function to handle video play/pause on click
-function updateVideoClickHandler() {
-    // Store original click handler
-    const originalClickHandler = onMouseClick;
+// 3. Function to preload all videos for a switchable video object
+function preloadSwitchableVideos(name) {
+    if (!switchableVideos[name]) {
+        console.error(`No switchable video configuration found for: ${name}`);
+        return null;
+    }
 
-    // Create new handler that handles videos
+    const videoConfig = switchableVideos[name];
+
+    // Create container to track videos
+    const videoContainer = {
+        isLoaded: false,
+        isPlaying: false,
+        currentVideoIndex: 0,
+        videoElements: []
+    };
+
+    // Preload all videos
+    videoConfig.videoPaths.forEach((path, index) => {
+        const video = document.createElement('video');
+        video.src = path;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = "anonymous";
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+
+        // Store in both places for easy access
+        videoContainer.videoElements[index] = video;
+        videoConfig.videoElements[index] = video;
+
+        // Track loading of first video (the one we'll show first)
+        if (index === 0) {
+            video.addEventListener('loadedmetadata', () => {
+                console.log(`Initial video for ${name} loaded, duration:`, video.duration);
+                videoContainer.isLoaded = true;
+            });
+        }
+
+        // Error handling
+        video.addEventListener('error', (e) => {
+            console.error(`Error loading video ${index} for ${name}:`, e);
+        });
+    });
+
+    return videoContainer;
+}
+
+// 4. Function to switch to the next video
+function switchVideo(clickedObject) {
+    // Get the object name from the clicked object
+    const objectName = clickedObject.userData.name;
+
+    if (!switchableVideos[objectName]) {
+        console.error(`Attempted to switch non-existent video: ${objectName}`);
+        return;
+    }
+
+    const videoConfig = switchableVideos[objectName];
+
+    // Generate a unique identifier for this specific instance if it doesn't exist
+    const objectId = clickedObject.id;
+    if (videoConfig.instanceIndices[objectId] === undefined) {
+        videoConfig.instanceIndices[objectId] = 0;
+    }
+
+    // Get the current video index for this specific instance
+    let currentIndex = videoConfig.instanceIndices[objectId];
+
+    // Get the current video
+    const currentVideo = videoConfig.videoElements[currentIndex];
+
+    // Advance to the next video index for this specific instance
+    currentIndex = (currentIndex + 1) % videoConfig.videoPaths.length;
+    videoConfig.instanceIndices[objectId] = currentIndex;
+
+    // Get the next video
+    const nextVideo = videoConfig.videoElements[currentIndex];
+
+    console.log(`Switching ${objectName} (instance ${objectId}) from video ${videoConfig.instanceIndices[objectId] - 1} to ${currentIndex}`);
+
+    // Pause the current video
+    if (currentVideo) {
+        currentVideo.pause();
+    }
+
+    // Important: Only update the specific clicked object
+    // Update the video element reference
+    clickedObject.userData.videoElement = nextVideo;
+
+    // Update the texture
+    const newVideoTexture = new THREE.VideoTexture(nextVideo);
+    newVideoTexture.minFilter = THREE.LinearFilter;
+    newVideoTexture.magFilter = THREE.LinearFilter;
+    newVideoTexture.format = THREE.RGBAFormat;
+
+    // Replace the material's map
+    clickedObject.material.map.dispose(); // Clean up old texture
+    clickedObject.material.map = newVideoTexture;
+    clickedObject.material.needsUpdate = true;
+
+    // Play the new video
+    nextVideo.play().then(() => {
+        console.log(`Now playing video ${currentIndex} for ${objectName} (instance ${objectId})`);
+    }).catch(e => {
+        console.warn(`Could not play switched video for ${objectName} (instance ${objectId}):`, e);
+    });
+}
+// 5. Update the onMouseClick handler to support video switching
+function updateVideoClickHandler() {
+    // Store original click handler if it exists
+    const originalClickHandler = window.onMouseClick || onMouseClick;
+
+    // Create new handler that handles switchable videos
     window.onMouseClick = function (event) {
         // First check if we clicked a video
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -4204,7 +4429,20 @@ function updateVideoClickHandler() {
         if (intersects.length > 0) {
             const clickedObject = intersects[0].object;
 
-            // If it's a video object, try to play/pause it
+            // If it's a switchable video object, switch to the next video
+            if (clickedObject.userData.isVideo &&
+                clickedObject.userData.isSwitchableVideo &&
+                clickedObject.userData.name &&
+                switchableVideos[clickedObject.userData.name]) {
+
+                console.log(`Clicked switchable video: ${clickedObject.userData.name}`);
+                // Pass the entire clickedObject instead of just the name
+                // This ensures we only switch the specific video that was clicked
+                switchVideo(clickedObject);
+                return; // Stop here to prevent other actions
+            }
+
+            // Handle regular video objects
             if (clickedObject.userData.isVideo && clickedObject.userData.videoElement) {
                 const video = clickedObject.userData.videoElement;
                 const container = clickedObject.userData.videoContainer;
@@ -4218,10 +4456,12 @@ function updateVideoClickHandler() {
                         console.error(`Could not play video ${clickedObject.userData.name}:`, e);
                     });
                 } else {
-                    // Pause the video
-                    video.pause();
-                    container.isPlaying = false;
-                    console.log(`Video ${clickedObject.userData.name} paused`);
+                    // For non-switchable videos, toggle play/pause
+                    if (!clickedObject.userData.isSwitchableVideo) {
+                        video.pause();
+                        container.isPlaying = false;
+                        console.log(`Video ${clickedObject.userData.name} paused`);
+                    }
                 }
 
                 // Also handle zooming if it's zoomable
@@ -4229,7 +4469,7 @@ function updateVideoClickHandler() {
                     handleZoomableObjectClick(clickedObject);
                 }
 
-                // We handled the video, so return
+                // We handled the video interaction, so return
                 return;
             }
         }
@@ -4242,9 +4482,8 @@ function updateVideoClickHandler() {
     window.removeEventListener('click', originalClickHandler);
     window.addEventListener('click', window.onMouseClick);
 
-    console.log("Video click handler installed");
+    console.log("Enhanced video click handler installed with switching support");
 }
-
 // When we're in section 3, try to play videos automatically
 function updateVideoVisibility() {
     if (currentSection < 1.5) {
@@ -4280,6 +4519,15 @@ function updateVideoVisibility() {
     }
 }
 
+
+// 7. Update createScene() to initialize the video switching
+function initializeVideoSwitching() {
+    // Install our enhanced click handler
+    updateVideoClickHandler();
+
+    console.log("Video switching functionality initialized");
+}
+
 // Create section 3
 function createSection3() {
     console.log("Creating section 3...");
@@ -4290,11 +4538,26 @@ function createSection3() {
     createSection3ImageLayer(1.4, 'assets/images/section3/desk.png', 0.6, 'desk');
     // createSection3ImageLayer(-3, 'assets/images/section3/phonestand.png', 0.7, 'books');
     //  createSection3ImageLayer(-2, 'assets/images/section3/tablet.png', 0.8, 'tablet');
+    // 6. Call this function in createSection3() to use the updated version for creating videos
+
+    // Replace the existing video creation calls with our enhanced version
     createSection3VideoObject(
-        'assets/vid.mp4',
-        { x: 2.35, y: 3.65, z: 1.499 },
-        { width: 1.3, height: 2.15 },
-        'demo-video',             // Name for the video object
+        switchableVideos.handsomePL.videoPaths[0], // Use the first path from our config
+        { x: 2.35, y: 3.75, z: 1.501 },
+        { width: 1.3, height: 2.2 },
+        'handsomePL',             // Name must match the key in switchableVideos
+        {
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 1.48,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
+
+    createSection3VideoObject(
+        switchableVideos.spiderman.videoPaths[0], // Use the first path from our config
+        { x: -1, y: 3.65, z: 1.51 },
+        { width: 3.1, height: 1.8 },
+        'spiderman',               // Name must match the key in switchableVideos
         {
             position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
             scale: 1.5,
@@ -4302,11 +4565,23 @@ function createSection3() {
         }
     );
 
+    createSection3ZoomableObject(
+        'assets/images/section3/desktop.png',
+        { x: -1, y: 3.45, z: 1.5 },
+        { width: 3.6, height: 3.1 },
+        'desktop',
+        {
+            closeupPath: 'assets/images/section3/desktop.png',
+            position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
+            scale: 3,
+            rotation: { x: 0, y: 0, z: 0 }
+        }
+    );
 
     createSection3ZoomableObject(
         'assets/images/section3/phonestand.png',
-        { x: 2.35, y: 3.6, z: 1.5 },
-        { width: 3, height: 3 },
+        { x: 2.36, y: 3.6, z: 1.5 },
+        { width: 3.1, height: 3.3 },
         'phonestand',
         {
             closeupPath: 'assets/images/section3/phonestand.png',
@@ -4319,7 +4594,7 @@ function createSection3() {
         'assets/images/section3/sticky.png',
         { x: -3, y: 7.2, z: 0.1 },
         { width: 3, height: 2.5 },
-        'instagram',
+        'sticky',
         {
             closeupPath: 'assets/images/section3/sticky.png',
             position: { x: 0, y: -window.innerHeight / 45 * 2, z: 0 },
@@ -4331,7 +4606,7 @@ function createSection3() {
     // Add zoomable objects
     createSection3ZoomableObject(
         'assets/images/section3/insta.png',
-        { x: 1, y: 4.8, z: 0 },
+        { x: 0.5, y: 4.8, z: 0 },
         { width: 2, height: 3.5 },
         'instagram',
         {
@@ -4344,9 +4619,12 @@ function createSection3() {
 
 
 
+
+
+
     createSection3ZoomableObject(
         'assets/images/section3/instanote.png',
-        { x: 3, y: 5, z: 0 },
+        { x: 2, y: 6, z: 0 },
         { width: 2.5, height: 2.5 },
         'instanote',
         {
@@ -5012,6 +5290,7 @@ function createScene() {
     createSection3();
     // enhanceSection3WithDrawableScreen()
     updateMouseClickHandler();
+    initializeVideoSwitching();
 
 
 
